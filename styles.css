@@ -1,0 +1,3649 @@
+/* Obsidian AI — chat view styles. Mobile-first: generous touch targets,
+   flexible layout, and Obsidian theme variables for light/dark consistency. */
+
+.UNagent-root {
+  padding: 0;
+  height: 100%;
+  /* Ensure box-sizing consistency — Obsidian's main view .view-content may
+     default to content-box, which makes padding-bottom ADD to the height
+     instead of reducing the content area. This is the root cause of the
+     main-view input being hidden behind the keyboard (padding creates
+     scroll space instead of lifting the composer). */
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* When the chat is opened as a tab in the MAIN editor area (via the
+   "open in main window" command), cap its width to Obsidian's
+   "Readable line length" setting (--file-line-width) — the same
+   constraint applied to markdown panes. This prevents the chat from
+   stretching across the full width of a wide main area. Sidebar
+   instances (right/left split) are unaffected and fill the sidebar. */
+.workspace-split.mod-root .UNagent-root {
+  max-width: var(--file-line-width, 700px);
+  margin: 0 auto;
+}
+
+/* Plugin surface token: pure white in light themes — the user found the
+   theme-inherited warm tint ("那个浅黄色") tacky, so light-mode surfaces
+   are pinned to #fff regardless of the vault theme. Dark themes keep their
+   own primary so the plugin adapts instead of glaring white at night.
+   Every card/bubble/picker inside the view paints with this token. */
+.UNagent-chat {
+  --ai-surface: var(--background-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  /* Smooth keyboard slide-up: when is-keyboard activates, padding-bottom
+     transitions from 0 to --ai-kb. 0.15s is snappy enough to feel instant
+     but avoids a jarring snap. The JS applies the estimate immediately
+     (0ms), so this transition only covers the animation curve. */
+  transition: padding-bottom 0.15s ease-out;
+  /* No solid panel background (补刀): let the theme's own surface show, so a
+     white block no longer extends outside the input's frame. */
+}
+
+.theme-light .UNagent-chat {
+  --ai-surface: #fff;
+}
+
+/* Lucide icon wrapper (components/Icon.tsx). Stroke icons follow the text
+   color and the parent's font-size, so they blend with Obsidian's chrome. */
+.UNagent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.UNagent-icon svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2;
+}
+
+/* Header */
+/* Header — a slim bar (追加⑰): no bottom hairline, minimal vertical
+   padding. */
+.UNagent-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 12px;
+  flex-shrink: 0;
+}
+
+/* Header title — doubles as the conversation-manager entry: tapping it
+   opens the /chats sheet (the chevron hints at that). */
+.UNagent-chat-header .UNagent-chat-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 6px;
+  margin-left: -6px;
+  background: transparent;
+  border: none;
+  box-shadow: none; /* core `button` (0,1,1) would repaint at rest — (0,2,0) wins */
+  outline: none;
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.UNagent-chat-header .UNagent-chat-title:hover {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-chat-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.UNagent-chat-title > .UNagent-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+/* The title is a TOGGLE (追加⑯): the chevron flips while the manager
+   sheet is open, so the second-tap-to-close reads at a glance. */
+.UNagent-chat-title.is-open > .UNagent-icon {
+  transform: rotate(180deg);
+}
+
+/* Context-usage chip beside 新对话 (追加⑯): estimated used / window
+   tokens. Deliberately faint — a gauge, not a headline. */
+.UNagent-chat-usage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.UNagent-chat-usage > .UNagent-icon {
+  font-size: 12px;
+}
+
+/* Dock for the title-bar-opened conversation manager (追加⑯). An empty
+   in-flow slot: zero height while empty (layout unchanged); the composer
+   portals the sheet here, which then pushes the message body down so the
+   manager reads as "right below the title bar". Command-opened (/chats)
+   sheets never land here — they stay anchored above the composer. */
+.UNagent-chat-popdock {
+  position: relative;
+  z-index: var(--layer-popover, 60);
+  flex-shrink: 0;
+}
+
+/* 追加㊱: Hermes 模式切换 pill——固定「Hermes」字样（不随模式换名），
+   高亮（is-active）= 当前对话在 Hermes 模式；点击切换。出现与否跟随
+   「启用 Hermes 集成」总开关（开启即常驻，不随 Hermes 窗口开关变化）。
+   放计量 chip 右侧（上下文计量自然左移）。基规则带容器类前缀提到
+   (0,2,0)，压过核心 `button:not(.clickable-icon)` (0,1,1) 的静止态重绘
+   ——补 box-shadow/outline:none 防残框。 */
+.UNagent-chat-header .UNagent-chat-mode {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: none;
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.UNagent-chat-header .UNagent-chat-mode:hover:not(:disabled) {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+/* Hermes 模式激活态：实心强调色 */
+.UNagent-chat-header .UNagent-chat-mode.is-active {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+
+.UNagent-chat-header .UNagent-chat-mode:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Hermes 连接状态灯（补刀·五十九）：pill 内嵌 8px 圆点。
+   灰=未连接/连接中、绿=已就绪、红=失败——三态颜色走主题变量（明暗主题
+   都适配）；is-active（hermes 对话）实心强调底上补白色内描边保可辨。 */
+.UNagent-chat-header .UNagent-hermes-status {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  vertical-align: middle;
+}
+
+.UNagent-chat-header .UNagent-hermes-status--ready {
+  background: var(--color-green, #4caf50);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.UNagent-chat-header .UNagent-hermes-status--failed {
+  background: var(--color-red, #e53935);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.UNagent-chat-header .UNagent-chat-mode.is-active .UNagent-hermes-status {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* 连接中轻微呼吸——进行时态感知（尊重系统减弱动效设置） */
+@media (prefers-reduced-motion: no-preference) {
+  .UNagent-chat-header .UNagent-hermes-status--connecting {
+    animation: UNagent-hermes-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes UNagent-hermes-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Config notice */
+.UNagent-chat-notice {
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  flex-shrink: 0;
+}
+
+/* Message-list frame: a relative body so the conversation-nav nodes can pin
+   themselves to the right edge and overlay the scroll area. overflow:hidden
+   seals off horizontal panning — the nav is an overlay, never extra width. */
+.UNagent-chat-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Message list — kept as roomy as the frame allows. */
+.UNagent-chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  -webkit-overflow-scrolling: touch;
+  /* 追加46: 全文字可自由拖动选择 — Obsidian 主题/移动端可能对自定义视图
+     设 user-select: none，聊天根显式打开，否则“拖不动”。 */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* The question-node rail replaces the message list's own scrollbar: hide
+   the native one and reserve the rail's sliver so right-aligned user
+   bubbles never sit under the nodes. */
+.UNagent-chat-body--nav .UNagent-chat-messages {
+  padding-right: 26px;
+  scrollbar-width: none; /* Firefox */
+}
+.UNagent-chat-body--nav .UNagent-chat-messages::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* WebKit (Obsidian desktop + mobile) */
+}
+
+.UNagent-chat-empty {
+  position: relative; /* 追加⑧：浮窗定位锚点 */
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-medium);
+  text-align: center;
+  padding: 0 16px;
+}
+
+.UNagent-chat-empty > .UNagent-icon {
+  font-size: 30px;
+  margin-bottom: 4px;
+  opacity: 0.65;
+}
+
+.UNagent-chat-empty-title {
+  color: var(--text-muted);
+  font-size: var(--font-ui-medium);
+}
+
+/* The '/'-'@' teaching (追加⑰): a faint second line under the greeting,
+   picked randomly — one of COMPOSER_HINTS. */
+.UNagent-chat-empty-tip {
+  margin-top: 4px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  opacity: 0.85;
+}
+
+/* 追加㊾：agent 名称 pill——无边框纯白圆角矩形，可点击打开子代理切换菜单。
+   放在空态问候语中，点开显示 CommandPicker 列表。 */
+.UNagent-agent-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  height: 24px;
+  border-radius: var(--radius-m, 6px);
+  background: var(--background-primary, #fff);
+  color: var(--text-accent, var(--interactive-accent));
+  font-size: inherit;
+  font-weight: 600;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: background 0.15s;
+}
+.UNagent-agent-pill:hover,
+.UNagent-agent-pill:focus-visible {
+  background: var(--background-modifier-hover);
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+.UNagent-agent-pill:active {
+  transform: scale(0.96);
+}
+
+/* 追加⑧：agent pill 浮窗——不再占据全屏，而是悬浮在标题下方 */
+.UNagent-agent-pill-overlay {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  z-index: var(--layer-popover, 60);
+}
+.UNagent-agent-pill-menu {
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(60vh, 400px);
+  background: var(--background-primary, #fff);
+  border-radius: var(--radius-l, 12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+/* 浮窗内的 CommandPicker 覆盖默认 absolute 定位（bottom: calc(100% + 6px)）
+   改为相对定位，正常占满菜单容器。 */
+.UNagent-agent-pill-menu .UNagent-mention {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.55), 360px);
+  animation: none;
+}
+
+/* 追加96: 子代理切换浮窗的行文本显式左对齐——text-align 是继承属性，个别
+   主题会给自定义视图容器注入 text-align: center，行内名称/简介随之居中；
+   按「核心泛型样式盖过插件类」的已知坑，用前缀类高特异度显式声明压住。 */
+.UNagent-agent-pill-menu .UNagent-mention,
+.UNagent-agent-pill-menu .UNagent-mention-item,
+.UNagent-agent-pill-menu .UNagent-mention-text,
+.UNagent-agent-pill-menu .UNagent-mention-name,
+.UNagent-agent-pill-menu .UNagent-mention-sub {
+  text-align: left;
+}
+
+/* 设置→通用→小提示：二级弹窗中的提示列表 */
+.UNagent-tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.UNagent-tips-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-secondary, transparent);
+}
+.UNagent-tips-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-accent, var(--interactive-accent));
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-primary, #fff);
+}
+.UNagent-tips-text {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  line-height: 1.4;
+}
+
+/* Message bubble */
+.UNagent-message {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.UNagent-message-role {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+/* 用户消息的名称跟着右侧气泡对齐（追加㊿：用户指示「我的名称右对齐」）。 */
+.UNagent-message--user .UNagent-message-role {
+  align-self: flex-end;
+}
+
+/* 追加46: 消息渲染内容同样显式可选中（markdown 渲染区 / 角色名 / 状态条）。 */
+.UNagent-message .UNagent-markdown,
+.UNagent-message-role,
+.UNagent-command-status {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 追加46: AI 输出下方的四按钮行（分支对话 / 重新对话 / 引用对话 / 复制对话）。 */
+.UNagent-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center; /* 追加58: 五按钮靠左、版本组 ◀ N/M ▶ 在其右侧 */
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* 追加46: 基规则带容器前缀 (0,2,0) — 核心 button:not(.clickable-icon) 的
+   背景/投影声明会盖过单类名基规则，必须抬高特异度并补 box-shadow: none。 */
+.UNagent-message-actions .UNagent-msg-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.UNagent-message-actions .UNagent-msg-action:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-message-actions .UNagent-msg-action.is-primary {
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+/* 追加46: 双击用户消息进入编辑 — 编辑发生在主输入框（追加48），气泡只高亮。
+   追加86: 实线描边改为虚线（「待改」语气），并配同族状态徽章（见下）。 */
+.UNagent-message--editing {
+  outline: 1.5px dashed var(--interactive-accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* 追加86: 重编辑徽章——命令状态 pill / btw 提示的同族小胶囊：accent 淡底、
+   圆角、小号字；与「顺便一问」同位（flex-start），一眼看出气泡处于编辑态。 */
+.UNagent-message-edit-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.UNagent-message-edit-badge .UNagent-icon {
+  font-size: 12px;
+}
+
+/* 追加48: 主输入框的编辑模式条（双击消息后出现，取消即退出）。
+   追加52: 独占整行（flex: 0 0 100% + 父级 flex-wrap）——此前与纸夹/
+   输入框/发送按钮挤在同一行，输入框被压成窄条、发送按钮被推出行尾。 */
+.UNagent-composer-editbar {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.UNagent-composer-editbar-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 基规则带容器前缀 (0,2,0) + box-shadow: none（核心 button 样式覆盖铁律）。 */
+.UNagent-composer-editbar .UNagent-composer-editbar-cancel {
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.UNagent-composer-editbar .UNagent-composer-editbar-cancel:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 追加51: 回溯轮次选择器 — 全屏轻遮罩 + 按钮旁浮层列表。 */
+.UNagent-backtrack-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: transparent;
+}
+
+.UNagent-backtrack-menu {
+  position: fixed;
+  z-index: 121;
+  min-width: 220px;
+  max-width: min(88vw, 340px);
+  max-height: min(60vh, 360px);
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-s);
+}
+
+.UNagent-backtrack-title {
+  padding: 4px 8px 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+}
+
+.UNagent-backtrack-empty {
+  padding: 10px 8px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
+/* 基规则带容器前缀 (0,2,0) + box-shadow: none（核心 button 样式覆盖铁律）。 */
+.UNagent-backtrack-menu .UNagent-backtrack-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  border-radius: 7px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  text-align: left;
+  cursor: pointer;
+}
+
+.UNagent-backtrack-menu .UNagent-backtrack-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 追加66: 「第 N 轮」前缀已移除——预览文字是列表唯一主体，用正常字色。 */
+.UNagent-backtrack-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-normal);
+}
+
+/* 追加63: AI 主动提问面板（ask_user 工具）— 输入框上方卡片：问题 + 预设
+   快捷回答 + 固定自由输入框。预设按钮/关闭/发送均为 (0,2,0) 铁律。
+   追加65: max-height 限高 + 内部滚动（--ai-vvh 随键盘弹起自动缩小，
+   移动端不会因高度过高而丢失问题/选项信息）。 */
+.UNagent-ask-panel {
+  margin: 0 10px 8px;
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.42), 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.UNagent-ask-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.UNagent-ask-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+/* 追加76: 多问题批的进度指示（如 2/3），与标题并排弱化显示。 */
+.UNagent-ask-progress {
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.UNagent-ask-question {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.UNagent-ask-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.UNagent-ask-panel .UNagent-ask-option {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-ask-panel .UNagent-ask-option:hover {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-ask-panel .UNagent-ask-option:active {
+  background: var(--background-modifier-active);
+}
+
+/* 追加65: ↑/↓ 键盘导航的焦点可见性。 */
+.UNagent-ask-panel .UNagent-ask-option:focus-visible {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+/* 追加77: 多选选项——checkbox 风格，flex 对齐图标 + 标签。 */
+.UNagent-ask-panel .UNagent-ask-option[data-multi-select] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-ask-panel .UNagent-ask-option[data-multi-select]:hover {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-ask-panel .UNagent-ask-option-selected {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-ask-option-check {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.UNagent-ask-option-selected .UNagent-ask-option-check {
+  color: var(--interactive-accent);
+}
+
+/* 追加77: 多选确认按钮——发送按钮同款风格，位于选项区下方。 */
+.UNagent-ask-panel .UNagent-ask-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 14px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-ask-panel .UNagent-ask-confirm:hover {
+  opacity: 0.9;
+}
+
+.UNagent-ask-panel .UNagent-ask-confirm:active {
+  opacity: 0.8;
+}
+
+.UNagent-ask-panel .UNagent-ask-confirm:focus-visible {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.UNagent-ask-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.UNagent-ask-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.UNagent-ask-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.UNagent-ask-panel .UNagent-ask-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.UNagent-ask-panel .UNagent-ask-close:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-ask-panel .UNagent-ask-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.UNagent-ask-panel .UNagent-ask-send:hover {
+  opacity: 0.9;
+}
+
+.UNagent-ask-panel .UNagent-ask-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 进化 B 案: AI 反思建议确认面板 —— 输入框上方卡片：建议列表 + 逐条 ✓ /
+   整体 ×。确认前绝不写盘。按钮基规则一律 (0,2,0) + box-shadow/outline:
+   none（核心 button 样式覆盖铁律），触屏命中 ≥32px。 */
+.UNagent-suggest-panel {
+  margin: 0 10px 8px;
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.42), 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.UNagent-suggest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.UNagent-suggest-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.UNagent-suggest-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.UNagent-suggest-row + .UNagent-suggest-row {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.UNagent-suggest-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.UNagent-suggest-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.UNagent-suggest-badge[data-type='skill'] {
+  color: var(--text-accent);
+  border-color: var(--interactive-accent);
+}
+
+.UNagent-suggest-content {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.UNagent-suggest-reason {
+  width: 100%;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.UNagent-suggest-panel .UNagent-suggest-approve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.UNagent-suggest-panel .UNagent-suggest-approve:hover {
+  opacity: 0.9;
+}
+
+.UNagent-suggest-panel .UNagent-suggest-approve:active {
+  transform: scale(0.94);
+}
+
+.UNagent-suggest-panel .UNagent-suggest-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.UNagent-suggest-panel .UNagent-suggest-close:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* 追加52: 回答版本切换 — 追加58 定稿：◀ N/M ▶（数字在箭头中间）紧跟五按钮右侧。 */
+.UNagent-msg-versions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px; /* 与左侧按钮组的间距 */
+}
+
+/* 基规则带容器前缀 (0,2,0) + box-shadow: none（核心 button 样式覆盖铁律）。 */
+.UNagent-msg-versions .UNagent-msg-versions-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.UNagent-msg-versions .UNagent-msg-versions-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-msg-versions .UNagent-msg-versions-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: none;
+}
+
+.UNagent-msg-versions-count {
+  min-width: 44px;
+  text-align: center; /* 数字在左右箭头中间（追加58） */
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Command success status (追加⑱ 补刀): a dark-green rounded pill on the
+   assistant result of /btw / /learn / /compact (and future commands) when
+   the command completed without error. */
+.UNagent-command-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin: 2px 0 4px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  /* Hardcoded 墨绿 fallback first so the pill is ALWAYS visible; the
+     color-mix just adapts it to the theme's green when both resolve. */
+  background: #1b5e20;
+  background: color-mix(in srgb, var(--text-success) 55%, #000);
+  color: #fff;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.UNagent-command-status-check {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.UNagent-message--user .UNagent-message-user-text {
+  align-self: flex-end;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  padding: 8px 12px;
+  /* Rounded bubble with a tight corner pointing at the sender. */
+  border-radius: var(--radius-l);
+  border-bottom-right-radius: var(--radius-s);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 85%;
+}
+
+/* 追加95: 用户气泡（accent 背景）上的选中高亮——主题默认 ::selection 是
+   半透明蓝，叠在 accent 蓝上几乎不可见（选区存在但看不出）。反白：白底 +
+   accent 文字，浅/暗主题都清晰；AI 气泡（浅背景）保持主题默认选区。 */
+.UNagent-message--user ::selection {
+  background: var(--text-on-accent);
+  color: var(--interactive-accent);
+}
+
+.UNagent-message--assistant .UNagent-markdown {
+  /* 追加⑱ 补刀: the AI's answer reads as plain flowing text — no bubble.
+     The user's accent bubble + the role labels carry the conversation
+     structure; code blocks keep their own native frame. */
+  padding: 0;
+  word-break: break-word;
+  /* Neutralize Obsidian's preview padding so our padding controls spacing. */
+  font-size: var(--font-ui-medium);
+}
+
+/* Neutralize Obsidian's OWN `.markdown-preview-view` layout on the plugin's
+   per-block markdown (用户报): Obsidian sizes the preview view as a FULL NOTE —
+   `height: 100%; overflow-y: auto; padding: var(--file-margins)`. Applied to
+   the plugin's many small blocks (tool rounds → text → tool rounds → long
+   answer), every block becomes EQUAL height: the few-line texts stretch into a
+   big blank and the long answer clips to the same box. Override the layout
+   properties (0,2,0 beats Obsidian's 0,1,0 and any theme's restyle); the
+   typography (fonts/headings/links) still comes from the preview class. */
+.UNagent-chat .UNagent-markdown {
+  height: auto;
+  overflow: visible;
+  padding: 0;
+}
+
+/* Tight paragraph rhythm — a one-sentence narration shouldn't leave a big
+   blank gap between the thought chain and the answer (用户报). */
+.UNagent-message--assistant .UNagent-markdown p {
+  margin: 0.35em 0;
+}
+
+.UNagent-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.UNagent-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.UNagent-markdown pre {
+  overflow-x: auto;
+}
+
+/* Error card (追加⑱ 补刀): a professional, diagnosable error — a category
+   title, an actionable "how to fix" hint, and a collapsible raw provider
+   detail — not a bare red line. */
+.UNagent-message-error {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 4px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--text-error);
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--text-error) 7%, transparent);
+  font-size: var(--font-ui-small);
+  word-break: break-word;
+}
+
+.UNagent-message-error-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-error);
+}
+
+.UNagent-message-error-head .UNagent-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.UNagent-message-error-title {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.UNagent-message-error-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+}
+
+.UNagent-message-error-body {
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.UNagent-message-error-hint {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.UNagent-message-error-hint::before {
+  content: '建议：';
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.UNagent-message-error-detail summary {
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  user-select: none;
+}
+
+.UNagent-message-error-detail pre {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Ephemeral /btw exchange — visibly "off to the side": dimmed, with a small
+   badge saying it won't be recorded in the conversation. */
+.UNagent-message--ephemeral {
+  opacity: 0.8;
+}
+
+.UNagent-message-btw {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+
+.UNagent-message-btw .UNagent-icon {
+  font-size: 12px;
+}
+
+/* Composer — no top hairline; the input card floats on the chat surface
+   with its own border, and safe-area padding keeps it clear of the home
+   indicator on modern phones. */
+.UNagent-composer-wrap {
+  flex-shrink: 0;
+  position: relative; /* anchor for the @-mention popup */
+  padding: 2px 12px calc(2px + env(safe-area-inset-bottom, 0px));
+  /* Smooth the safe-area zeroing when is-keyboard activates. */
+  transition: padding-bottom 0.15s ease-out;
+}
+
+/* Mobile main window: raise the input box above Obsidian's floating
+   toolbar (~44px). The toolbar sits at the bottom of the screen and
+   overlaps the composer in the main editor area. Adding ~66px (≈1.5×
+   the composer card height) of bottom padding lifts the input above it.
+   Touch devices only — desktop has no floating toolbar.
+   When keyboard opens, the is-keyboard rules below override this
+   (higher specificity) and set padding-bottom to 2px. */
+@media (hover: none) and (pointer: coarse) {
+  .workspace-split.mod-root .UNagent-composer-wrap {
+    padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px) + 66px);
+  }
+}
+
+/* Keyboard open — zero out safe-area-inset-bottom. When the on-screen
+   keyboard is visible it already covers the home indicator area, so
+   env(safe-area-inset-bottom) becomes dead space: a visible gap between
+   the input and the keyboard.
+
+   Detection: .is-keyboard — JS focusin/visualViewport check (set by
+   Chat.tsx: textarea focus triggers delayed rechecks; visualViewport
+   provides precise height when available; estimated height fallback
+   for iPad WKWebView where visualViewport doesn't report changes).
+
+   The old :focus-within fallback was REMOVED because it activated on
+   textarea focus — BEFORE the keyboard was actually visible — causing
+   the composer to jump down by env(safe-area-inset-bottom) and then
+   back up when is-keyboard fired a few hundred ms later. On desktop
+   env(safe-area-inset-bottom) is 0 so the fallback was a no-op there
+   anyway. */
+/* Push the entire flex content above the keyboard. Without this the chat
+   panel is height:100% of the Obsidian view (which does NOT shrink when
+   the keyboard opens on iPad/mobile), so the composer sits behind the
+   keyboard. The padding reduces the content area (border-box), lifting
+   the composer above the keyboard top.
+
+   The push-up equals the full keyboard height (--ai-kb) — this places the
+   composer's bottom edge exactly at the keyboard's top edge. No offset
+   subtraction: the old `kb - 66px` formula was a math error that pushed
+   the composer 66px INTO the keyboard area (behind it), not above it. */
+.UNagent-chat.is-keyboard {
+  padding-bottom: var(--ai-kb, 0px);
+}
+
+.UNagent-chat.is-keyboard .UNagent-composer-wrap {
+  padding-bottom: 2px;
+}
+
+/* Main window: the @media (hover:none) rule above adds 66px to
+   composer-wrap. This 4-class rule (higher specificity) ensures that
+   padding is zeroed to 2px when the keyboard opens, so the input sits
+   flush at the keyboard top — not floating 66px above it. */
+.workspace-split.mod-root .UNagent-chat.is-keyboard .UNagent-composer-wrap {
+  padding-bottom: 2px;
+}
+
+.UNagent-retry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  min-height: 34px;
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-m);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+/* (0,2,0) chrome kill — core `.theme-dark button` (0,1,1) would add its
+   --input-shadow 3D lift over our flat error button (same class of bug as
+   the 思考 label). */
+.UNagent-chat .UNagent-retry {
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-retry .UNagent-icon {
+  font-size: 14px;
+}
+
+.UNagent-retry:hover {
+  filter: brightness(1.1);
+}
+
+/* Session-state chips above the composer (think / model) — the visual
+   readout of whatever the '/' commands have configured. Deliberately tiny:
+   a status footnote, not a second toolbar (≈ half the height of a normal
+   control so they never eat input space). */
+/* Micro-interaction: the saving pill pops in when state changes (the
+   chips themselves were removed in 追加⑰ — model + thinking moved to the
+   placeholder, only the shared pop keyframe survives for the pill). */
+@keyframes UNagent-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The input card: paperclip + growing textarea + send, one surface.
+   The card sits quiet — NO hover highlight as the cursor passes over it
+   (the user found that distracting); only an actual focus lights a soft
+   neutral ring (a white ring would vanish on the now-white surface, so
+   the ring mixes from the text color and reads in both themes). */
+.UNagent-composer {
+  display: flex;
+  flex-wrap: wrap; /* 追加52: the edit bar claims a full row, the rest wraps */
+  align-items: flex-end;
+  gap: 6px;
+  /* Slim card (追加⑰): the whole input area sits a touch lower. Tighter
+     padding keeps the box short (补刀). Transparent now — the input blends
+     with the theme instead of floating as a white block (补刀). */
+  padding: 3px 5px 3px 7px;
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.UNagent-composer:hover {
+  border-color: var(--background-modifier-border);
+  box-shadow: none;
+}
+
+.UNagent-composer:focus-within {
+  border-color: color-mix(in srgb, var(--text-normal) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-normal) 10%, transparent);
+}
+
+.UNagent-composer-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  /* Kill native form-field chrome — on iOS especially a textarea otherwise
+     renders its own pale inset frame no matter what border/background say. */
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 24px;
+  /* JS auto-grows the box with its content up to a viewport-relative cap;
+     this CSS cap is the no-JS fallback. Beyond it, scroll internally —
+     with the scrollbar hidden, the field surface stays clean. */
+  max-height: min(40vh, 240px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 5px 2px;
+  border: none;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+  font-size: 16px; /* >=16px prevents iOS from zooming on focus */
+  line-height: 1.4;
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Obsidian ships generic `textarea:hover` / `:focus` / `:focus-visible`
+   rules (border / outline / box-shadow / background-color) whose specificity
+   beats the class rule above, painting an inner frame or a pale wash inside
+   the card. These (0,2,0) rules win in every state and keep the field
+   surface completely clean. */
+.UNagent-composer-input:hover,
+.UNagent-composer-input:focus,
+.UNagent-composer-input:focus-visible {
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.UNagent-composer-input::-webkit-scrollbar {
+  display: none;
+}
+
+.UNagent-composer-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Live in-input highlight (命令字变色 · 引用浅蓝): when a known /command or a
+   mention reference is present, the textarea's own text goes transparent
+   (caret stays visible) and the .UNagent-composer-cmd layer renders the
+   same text underneath — the command's Chinese label as an amber pill, the
+   [[…]] / [[…/]] / #tag references light-blue, everything else normal. The
+   command pill (at the start) shifts the textarea's text by its extra width
+   via padding-left, and multi-select chips are sized to the raw span they
+   replace, so the caret stays aligned with the visible text. Unknown /xxx
+   commands and uninteresting text get no overlay. */
+.UNagent-composer-inputbox--overlay .UNagent-composer-input {
+  position: relative;
+  z-index: 1;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--text-normal);
+}
+/* Two layers (追加㉞): the OUTER one is a static clipping window over the
+   textarea; the INNER one holds the text and rides translateY(-scrollTop).
+   Transforming the clipping box itself would drag it out of the input box
+   once scrolled — text floated above the top border while the bottom got
+   clipped short (用户报: 粘贴长文本后文字浮在输入框上边框上面). */
+.UNagent-composer-cmd {
+  position: absolute;
+  inset: 0;
+  /* Below the (transparent) textarea so typing / the caret stay fully normal.
+     Reference hover-preview is driven from the textarea's mouse events
+     (补刀) instead of pointer-events here. */
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.UNagent-composer-cmd-inner {
+  padding: 5px 2px;
+  font-size: 16px;
+  line-height: 1.4;
+  font-family: inherit;
+  white-space: pre-wrap;
+  color: inherit;
+}
+/* Chip skeleton shared by the command pill AND the mention chips (追加㊱,
+   用户指示: 两者除颜色外渲染一致; 追加㊲: 去掉花哨——不要描边环、不要饱和
+   彩底、不要亮色字，生产力工具式的安静观感)。Normal ink on a barely-tinted
+   surface; only a whisper of hue separates commands (green) from references
+   (blue). Horizontal padding stays ZERO: the textarea marker's invisible
+   　 pad carries exactly the icon's width, so the caret keeps aligning
+   with the chip. Vertical breathing room comes from padding cancelled by
+   negative margin — the line height stays the textarea's, so the overlay
+   never drifts. */
+.UNagent-composer-cmd-token,
+.UNagent-composer-mention-chip {
+  display: inline-block;
+  padding: 2px 0;
+  margin: -2px 0;
+  border-radius: 4px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+/* Command chip — barely-green surface. */
+.UNagent-composer-cmd-token {
+  background: color-mix(in srgb, var(--text-success) 8%, transparent);
+}
+/* Mention chip — barely-blue surface. */
+.UNagent-composer-mention-chip {
+  background: color-mix(in srgb, #3b82f6 8%, transparent);
+}
+/* AI-output references (ReferenceText): the chip flows INLINE with the
+   markdown text. Obsidian's .markdown-preview-view a would recolor the anchor
+   with the link color, so pin the same quiet muted ink (0,2,0) over it.
+   追加80: chip 里的图标是 setIcon 注的裸 span（没有 .UNagent-icon
+   包裹），svg 行尾留白会让图标与文字错位——图标 span 用 inline-block +
+   middle 与文字中线对齐（见下）。
+   追加90: 布局用 inline-block（CSS2 baseline 语义确定），不用 inline-flex
+   ——flex 容器的基线实现因浏览器而异，实测在正文/气泡两侧都有偏移。 */
+.UNagent-markdown .UNagent-output-mention {
+  /* 追加90: 回归 inline-block——CSS2 §10.8.1 明确的 baseline 语义
+     （baseline = 最后一个行盒的基线 = 内部文字基线），所有浏览器实现
+     一致，不受 flex 容器基线实现差异影响（实测 Chromium 下 inline-flex
+     的基线取第一个 flex item，在正文/气泡两侧均有偏移）。 */
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1.4;
+  font-size: 0.9em;
+  padding: 1px 6px;
+  margin: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* Inline command/skill pills in message bodies (追加㊺): same quiet family as
+   the composer token — barely-green surface, muted ink, flows inline with
+   the markdown text; currentColor keeps them legible inside the accent-
+   colored user bubble too. */
+.UNagent-markdown .UNagent-output-command {
+  /* 追加90: 与引用 chip 同款——回归 inline-block（见上注）。 */
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1.4;
+  font-size: 0.9em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-success) 8%, transparent);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* 追加93: icon 前置（first-child）、label 后置——视觉顺序 @引用；inline-block
+   的 baseline = 最后一个行盒的基线 = 文字基线，与子元素顺序无关，icon 以
+   middle 与文字中线对齐（svg 尺寸由下方规则控制）；margin-right 提供
+   icon 与文字的间距。 */
+.UNagent-markdown .UNagent-output-mention > span:first-child,
+.UNagent-markdown .UNagent-output-command > span:first-child {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+.UNagent-markdown .UNagent-output-mention svg,
+.UNagent-markdown .UNagent-output-command svg {
+  display: block;
+  width: 0.9em;
+  height: 0.9em;
+}
+/* User bubble: chips sit on the accent surface — inherit its ink and tint
+   the surface with currentColor instead of the output-side colors. */
+.UNagent-message--user .UNagent-output-mention,
+.UNagent-message--user .UNagent-output-command {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+/* 追加87: 用户气泡内 chip 与正文严格基线对齐——双前缀把特异性提到
+   (0,3,0)，压住任何主题/核心对 accent 表面上 a.internal-link 注入的
+   vertical-align（用户报：hermes 模式发送后气泡里引用块与文本错位成
+   居中）。基线规则本身在 .UNagent-markdown 级已存在，这里是气泡
+   语境下的钉死副本。 */
+.UNagent-message--user .UNagent-markdown .UNagent-output-mention,
+.UNagent-message--user .UNagent-markdown .UNagent-output-command {
+  vertical-align: baseline;
+}
+/* Re-enable hover on the anchor over the pointer-events:none overlay; the
+   chip itself stays inert (click doesn't navigate the editor). */
+.UNagent-composer-mention-link {
+  pointer-events: auto;
+  cursor: default;
+  text-decoration: none;
+}
+
+/* Empty-box hint: one rotating tip (@ references or / commands) sits
+   centered in the card until the first character is typed. The layer never
+   intercepts input — clicks pass through to the textarea. */
+.UNagent-composer-inputbox {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* Empty-box placeholder: the effective model + thinking-strength state line
+   (追加㊳ 曾误删，追加㊶ 恢复——用户要的只是命令子菜单里的状态徽章消失)。
+   Pure overlay: pointer-events none, gone on typing. */
+.UNagent-composer-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  pointer-events: none;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  line-height: 1.35;
+  text-align: center;
+  overflow: hidden;
+  animation: UNagent-hint-in 0.25s ease-out;
+}
+
+.UNagent-composer-hint-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.UNagent-composer-hint-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes UNagent-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Round action buttons inside the card; send is the white anchor. */
+.UNagent-composer .UNagent-composer-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  box-shadow: none; /* core `button` (0,1,1) repaints at rest — (0,2,0) wins */
+  outline: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.08s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.UNagent-composer .UNagent-composer-send {
+  /* 追加⑱ 补刀: was white-on-white with a white arrow — invisible. An
+     inverted circle (text-normal bg + surface arrow) shows up clearly on
+     both light and dark cards, still without any accent tint. */
+  background: var(--text-normal);
+  color: var(--ai-surface);
+}
+
+.UNagent-composer .UNagent-composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.UNagent-composer .UNagent-composer-send:not(:disabled):active {
+  transform: scale(0.88);
+}
+
+.UNagent-composer .UNagent-composer-stop {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+.UNagent-composer .UNagent-composer-stop:active {
+  transform: scale(0.88);
+}
+
+/* Paperclip — a ghost inside the card so the send button stays the
+   visual anchor on the right. */
+.UNagent-composer .UNagent-composer-attach {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.UNagent-composer .UNagent-composer-attach:hover {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-composer .UNagent-composer-attach:active {
+  transform: scale(0.88);
+}
+
+/* Hidden system file chooser (paperclip → 从系统添加). */
+.UNagent-composer-file {
+  display: none;
+}
+
+/* "正在存入 N 个文件…" transient status pill (paste / upload progress).
+   Same half-height language as the chips above it. */
+.UNagent-composer-saving {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 0 8px;
+  font-size: 11px; /* matches the chips: original text size, slim box */
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  animation: UNagent-chip-in 0.16s ease-out;
+}
+
+.UNagent-composer-saving-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  animation: UNagent-pulse 1s ease-in-out infinite;
+}
+
+/* Header actions (undo + clear) */
+.UNagent-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.UNagent-chat-header .UNagent-chat-undo {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-accent);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  padding: 4px 8px;
+  border-radius: var(--radius-s);
+}
+
+.UNagent-chat-header .UNagent-chat-undo:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-chat-header .UNagent-chat-undo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Conversation nav — question nodes on the scrollbar track ──────────
+   The message list's own scrollbar is hidden (see --nav above) and the
+   right edge carries one short ink dash per user question, clustered
+   around the vertical middle of the track. Hover the rail → ONE pure-white
+   panel listing every question pops beside the cluster (追加78: replaced
+   the old per-dash tooltip); click a row → jump and flash. Small arrows
+   above / below the cluster step to the previous / next question. The
+   scrollspy accents the dash being read. The rail is an overlay
+   (pointer-events off except on the nodes) — it can never add horizontal
+   width to the view. */
+.UNagent-nav {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none; /* only the nodes themselves are interactive */
+}
+
+.UNagent-nav-nodes {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* The dash cluster gathers around ≈ half the track height instead of
+     stretching top-to-bottom. `safe` degrades to flex-start (never clips)
+     if the stack ever grows taller than the track in a very long chat. */
+  justify-content: safe center;
+  pointer-events: auto;
+  /* The rail owns touch gestures (press-and-scrub, 追加⑱ 补刀): never let
+     the browser turn a rail drag into a page/message scroll. */
+  touch-action: none;
+}
+
+/* 追加78: the dashes + the two step arrows live in one centered column;
+   the gap moved here from the track when the cluster wrapper came in. */
+.UNagent-nav-nodes .UNagent-nav-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* One node = one user question. Nodes keep a comfortable tap/hover height;
+   flex-shrink + a tiny min-height let a very long chat compress the
+   cluster instead of overflowing the track.
+   Specificity note (追加⑰ 补刀): core's `button:not(.clickable-icon)` is
+   (0,1,1) and paints `background-color: var(--interactive-normal)` +
+   `box-shadow: var(--input-shadow)` at REST — a single-class base rule
+   (0,1,0) loses to it, which is exactly the "pale frame around the dash"
+   the user kept seeing (gone on hover, because the (0,2,0) state pins win).
+   The BASE rule must therefore also be (0,2,0): prefix the container. */
+.UNagent-nav-nodes .UNagent-nav-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 1;
+  width: 20px;
+  height: 9px;
+  min-height: 3px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Larger cursor/touch detection (追加⑱ 补刀): the dash is 9px — far too
+   small to aim at. A transparent ::before extends the node's interactive
+   box (≈38px wide × 31px tall) without moving the dash or widening the
+   cluster; generated content is hit-tested as part of the button. */
+.UNagent-nav-nodes .UNagent-nav-node::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  right: -9px;
+  top: -11px;
+  bottom: -11px;
+}
+
+/* Obsidian core paints generic button states (hover gets a soft gray
+   background) — that read as a box around each dash. Pin every interactive
+   state to invisible so only the bare dash is ever visible. */
+.UNagent-nav-node:hover,
+.UNagent-nav-node:focus,
+.UNagent-nav-node:focus-visible,
+.UNagent-nav-node:active {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Plain ink dashes (短横) — text-normal is near-black in light themes,
+   near-white in dark, i.e. the reading color either way. Hovering and the
+   active question stretch the dash slightly instead of scaling a dot. */
+.UNagent-nav-dash {
+  width: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-normal);
+  opacity: 0.4;
+  transition:
+    width 0.12s ease,
+    opacity 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.UNagent-nav-node:hover .UNagent-nav-dash {
+  opacity: 1;
+  width: 13px;
+}
+
+/* The question currently being read: accent + a little longer. */
+.UNagent-nav-node.is-active .UNagent-nav-dash {
+  opacity: 1;
+  width: 15px;
+  background: var(--interactive-accent);
+}
+
+/* /btw asides stay locatable but faint. */
+.UNagent-nav-node.is-ephemeral .UNagent-nav-dash {
+  opacity: 0.2;
+}
+
+/* 追加78: 上下小箭头（前一问 / 后一问），贴着 dash 簇的上下沿。
+   Base rule must be (0,2,0) — core `button:not(.clickable-icon)` (0,1,1)
+   paints background-color + box-shadow at rest, same trap as the dashes. */
+.UNagent-nav-cluster .UNagent-nav-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 13px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-normal);
+  opacity: 0.45;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: opacity 0.12s ease;
+}
+
+/* Pin every interactive state to invisible (core paints hover/active
+   backgrounds on generic buttons). */
+.UNagent-nav-step:hover,
+.UNagent-nav-step:focus,
+.UNagent-nav-step:focus-visible,
+.UNagent-nav-step:active {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-nav-cluster .UNagent-nav-step:hover,
+.UNagent-nav-cluster .UNagent-nav-step:active {
+  opacity: 1;
+}
+
+/* 追加78: 悬停弹出的全量问题面板 —— 用户指定纯白背景（不跟主题），
+   锚在导航条左侧、与 dash 簇同一垂直中线（top 50% 对 safe center）。
+   面板是 nodes 的子元素：光标从短横移到面板不会触发 mouseleave。 */
+.UNagent-nav-nodes .UNagent-nav-panel {
+  position: absolute;
+  right: calc(100% - 2px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 170px;
+  max-width: min(300px, 72vw);
+  max-height: 62%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  background-color: #fff;
+  color: #222;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: var(--radius-m);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+}
+
+/* 一行 = 一问：轮次编号 + 首行摘录，点击即定位。
+   追加82: 面板内部内容严格左对齐——行显式钉 flex 起点 + text-align left，
+   选择器加容器前缀提到 (0,3,0)，防任何核心/主题规则盖过。 */
+.UNagent-nav-nodes .UNagent-nav-panel .UNagent-nav-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  color: inherit;
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.UNagent-nav-panel .UNagent-nav-row:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* 正在读的那一问：淡蓝底 + 深色编号，纯白卡片上不依赖主题变量。 */
+.UNagent-nav-panel .UNagent-nav-row.is-active {
+  background-color: rgba(74, 108, 247, 0.12);
+}
+
+/* 追加82: 编号列改左对齐——原「固定宽槽内右对齐」会让个位数编号离左缘
+   悬出一段空隙，看起来像没对齐；统一从左缘起排。 */
+.UNagent-nav-nodes .UNagent-nav-panel .UNagent-nav-row-num {
+  flex-shrink: 0;
+  min-width: 1.4em;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  text-align: left;
+  color: #8a8a8a;
+}
+
+.UNagent-nav-panel .UNagent-nav-row.is-active .UNagent-nav-row-num {
+  color: #3b5bdb;
+}
+
+.UNagent-nav-panel .UNagent-nav-row-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* /btw asides stay locatable but faint — in the panel too. */
+.UNagent-nav-panel .UNagent-nav-row.is-ephemeral {
+  opacity: 0.55;
+}
+
+/* Flash highlight painted on the message a nav node jumped to. */
+.UNagent-message--flash {
+  border-radius: var(--radius-m);
+  animation: UNagent-nav-flash 1.25s ease-out;
+}
+
+@keyframes UNagent-nav-flash {
+  0%,
+  20% {
+    background-color: rgba(128, 128, 255, 0.2);
+    background-color: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/* No hover on touch: keep the dashes plainly visible so they can be tapped
+   (the hover panel never shows — it is matchMedia-guarded in JS; tapping
+   jumps straight to the question, and the arrows step prev/next).
+   The whole rail doubles as a press-and-scrub surface (追加⑱ 补刀): a
+   transparent ::before widens the touch target for fat fingers. */
+@media (hover: none) {
+  .UNagent-nav-dash {
+    opacity: 0.6;
+  }
+
+  .UNagent-nav-nodes::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -10px;
+  }
+
+  /* While the finger is dragging, the dashes brighten — a clear "scrub
+     mode" affordance. */
+  .UNagent-nav-nodes.is-scrubbing .UNagent-nav-dash {
+    opacity: 0.85;
+  }
+}
+
+/* Thought chain — a run of consecutive tool calls as ONE card. Steps are
+   ALWAYS shown (追加⑱ 补刀: no auto-collapse) as a dot-on-connector list;
+   each row is a title, and the verbose args / image output stay collapsed
+   until that title is clicked. Dot colors carry the state: running = green
+   pulse, done = green, error = red, retrying = red pulse. Borderless + a
+   thin connector with gaps (追加⑱ 补刀): it reads as a plain list, not a box. */
+.UNagent-chain {
+  background: var(--ai-surface);
+}
+
+.UNagent-chain-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left;
+}
+
+.UNagent-chain-head-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-muted);
+}
+
+.UNagent-chain-head-icon--running {
+  color: var(--text-accent);
+  animation: UNagent-pulse 1.3s ease-in-out infinite;
+}
+
+.UNagent-chain-head-title {
+  font-weight: 600;
+}
+
+.UNagent-chain-head-meta {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.UNagent-chain-steps {
+  padding: 0 12px 6px 14px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.UNagent-chain-step {
+  position: relative;
+  display: block;
+  padding: 2px 0;
+}
+
+/* Node + title share one row, centered — the dot always sits exactly on the
+   title line, even when the expanded detail below grows the step. The row
+   height is FIXED so the dot's vertical position is deterministic, which
+   lets the connector use symmetric gaps above and below (追加⑱ 补刀). */
+.UNagent-chain-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 24px;
+}
+
+/* Vertical connector between the node dots — a real DOM element (追加⑱ 补刀),
+   near-black and THIN (1px). With the row height fixed at 24px the dot spans
+   13–19px from the step top, so a 3px gap above (top 22) and a matching 3px
+   gap below (next dot starts 13px into the next step; bottom −10 ends 3px
+   short) stay symmetric. */
+.UNagent-chain-connector {
+  position: absolute;
+  left: 2.5px;
+  top: 22px;
+  bottom: -10px;
+  width: 1px;
+  background: var(--text-normal);
+}
+
+/* The node dot (追加⑱ 补刀): dark INK BLUE on success (the resting state),
+   dark blue pulse while running, light red on error, light red pulse while
+   retrying (a failed call the model immediately fires again). */
+.UNagent-chain-node {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-blue, #2563eb) 75%, #000);
+}
+
+.UNagent-chain-step--running .UNagent-chain-node {
+  animation: UNagent-pulse 1.3s ease-in-out infinite;
+}
+
+.UNagent-chain-step--retrying .UNagent-chain-node {
+  background: color-mix(in srgb, var(--text-error) 62%, #fff);
+  animation: UNagent-pulse 1.3s ease-in-out infinite;
+}
+
+.UNagent-chain-step--error .UNagent-chain-node {
+  background: color-mix(in srgb, var(--text-error) 62%, #fff);
+}
+
+/* The step's title row: clickable, reveals the collapsed details. Same
+   plain-button family — (0,2,0) base so core `button` never repaints it. */
+.UNagent-chain .UNagent-chain-step-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  padding: 1px 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-normal);
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.UNagent-chain .UNagent-chain-step-title:hover,
+.UNagent-chain .UNagent-chain-step-title:focus-visible {
+  color: var(--text-accent);
+}
+
+.UNagent-chain-step-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.UNagent-chain-chevron {
+  flex-shrink: 0;
+  display: flex;
+  margin-left: auto;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+.UNagent-chain-chevron--open {
+  transform: rotate(180deg);
+}
+
+.UNagent-chain-step-detail {
+  margin: 4px 0 2px;
+  padding: 4px 0 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--font-ui-smaller);
+}
+
+.UNagent-chain-step-detail .UNagent-chain-step-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  /* 追加⑱ 补刀: the shared .UNagent-chain-step-row sets height:24px for
+     the dot/title row — detail rows must reset it, or multi-line values
+     overflow and cover the rows below (the reported text-overlap bug). */
+  height: auto;
+  align-items: flex-start;
+}
+
+.UNagent-chain-step-key {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+.UNagent-chain-step-value {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+
+.UNagent-chain-step-value--wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.UNagent-chain-step-detail code {
+  font-family: var(--font-monospace);
+  color: var(--text-accent);
+}
+
+.UNagent-chain-step-status {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  word-break: break-word;
+}
+
+.UNagent-chain-step--running .UNagent-chain-step-status {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* 联网搜索来源列表（服务端 web_search 内置工具）：序号 + 标题 + 域名，
+   一条一行；容器前缀保证特异度盖过核心 a 样式。 */
+.UNagent-chain-step-detail .UNagent-chain-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 1px 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: var(--cursor-link, pointer);
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source:hover {
+  color: var(--text-accent);
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source:hover .UNagent-chain-source-title {
+  text-decoration: underline;
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source-index {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smallest);
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.UNagent-chain-step-detail .UNagent-chain-source-host {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smallest);
+}
+
+@media (max-width: 480px) {
+  /* 移动端宽度紧张：域名让位给标题。 */
+  .UNagent-chain-step-detail .UNagent-chain-source-host {
+    display: none;
+  }
+}
+
+@keyframes UNagent-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Task list (清单) — the TodoWrite-style live checklist the agent maintains
+   for complex multi-step tasks. Same borderless card language as the thought
+   chain: surface background, head row with icon + progress meta, then one
+   row per item. Item states: pending = hollow circle + muted text,
+   in_progress = spinning loader + accent text, completed = check + struck
+   faint text. Pure static markup — no interactive states to defend. */
+.UNagent-todo {
+  background: var(--ai-surface);
+}
+
+.UNagent-todo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.UNagent-todo-head-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-muted);
+}
+
+.UNagent-todo-head-icon--running {
+  color: var(--text-accent);
+  animation: UNagent-pulse 1.3s ease-in-out infinite;
+}
+
+.UNagent-todo-head-title {
+  font-weight: 600;
+}
+
+.UNagent-todo-head-meta {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.UNagent-todo-items {
+  padding: 4px 12px 8px 14px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.UNagent-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--font-ui-small);
+}
+
+.UNagent-todo-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-faint);
+}
+
+.UNagent-todo-item--pending .UNagent-todo-item-text {
+  color: var(--text-muted);
+}
+
+.UNagent-todo-item--in_progress .UNagent-todo-item-icon {
+  color: var(--text-accent);
+}
+
+.UNagent-todo-item--in_progress .UNagent-todo-item-text {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.UNagent-todo-item-icon--spin {
+  animation: UNagent-spin 1.1s linear infinite;
+}
+
+.UNagent-todo-item--completed .UNagent-todo-item-icon {
+  color: var(--text-success, #16a34a);
+}
+
+.UNagent-todo-item--completed .UNagent-todo-item-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.UNagent-todo-item-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+@keyframes UNagent-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── thinking preview inside a tool step ───────────────────────────
+   The model's extended-thinking / reasoning_content that preceded a tool
+   call, shown as a collapsible sub-section within the chain step. Default
+   is semi-collapsed: a 2-line clamp gives a preview; clicking the header
+   expands the full text. Independent of the step's args-detail toggle.
+   Visual language matches the step detail (muted text, smaller font,
+   subtle left border to set it apart as "reasoning" not "result"). */
+.UNagent-chain-thinking {
+  margin: 2px 0 3px 16px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  border-radius: 0 4px 4px 0;
+}
+
+.UNagent-chain .UNagent-chain-thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  /* (0,2,0) — core `.theme-dark button` (0,1,1) repaints rest-state chrome
+     (--input-shadow + background), which read as a stray frame around the
+     思考 label under 3D-button themes (用户报). Prefix class wins. */
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  height: auto;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.UNagent-chain .UNagent-chain-thinking-header:hover,
+.UNagent-chain .UNagent-chain-thinking-header:focus-visible {
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none; /* core `button:hover` chrome — same story as rest state */
+}
+
+.UNagent-chain-thinking-icon {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.UNagent-chain-thinking-label {
+  flex-shrink: 0;
+}
+
+.UNagent-chain-thinking-body {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  /* Semi-collapsed: clamp to 2 lines with ellipsis. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.UNagent-chain-thinking-body--expanded {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* @-mention reference picker (anchored above the composer) */
+.UNagent-mention {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 6px);
+  z-index: var(--layer-popover, 60);
+  display: flex;
+  flex-direction: column;
+  /* Max-height is the smaller of: 46% of visible viewport height, or 340px.
+     --ai-vvh is set to (innerHeight - keyboardHeight) by Chat.tsx, so the
+     panel shrinks when the keyboard is open. The !important is not needed
+     but the calc ensures the panel never grows past the visible area. */
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.46), 340px);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s, 0 8px 24px rgba(0, 0, 0, 0.25));
+  overflow: hidden;
+  animation: UNagent-mention-in 0.14s ease-out;
+}
+
+@keyframes UNagent-mention-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Docked variant (追加⑯): the manager sheet portaled into the header dock
+   renders IN-FLOW instead of absolutely anchored above the composer —
+   drop the anchoring + pop animation, keep the card. */
+.UNagent-mention--docked {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  margin: 8px 12px 4px;
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.6), 480px);
+  animation: none;
+}
+
+.UNagent-mention-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--ai-surface);
+  flex-shrink: 0;
+}
+
+.UNagent-mention-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.UNagent-mention-title .UNagent-icon {
+  font-size: 13px;
+}
+
+.UNagent-mention-title code {
+  color: var(--text-accent);
+  background: transparent;
+  padding: 0 2px;
+}
+
+.UNagent-mention-hint {
+  margin-left: auto;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
+/* 追加㉟：非 fileMode 列表头只剩这一句操作提示；右侧的汇总/确认/
+   关闭靠 margin-right:auto 推到行尾（close 的 margin-left:auto 被
+   兄弟规则归零，避免两段自动留白把徽章夹在中间）。 */
+.UNagent-mention-guide {
+  margin-right: auto;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.UNagent-mention-guide ~ .UNagent-mention-close {
+  margin-left: 0;
+}
+
+/* Keyboard hints are noise on touch devices. */
+@media (hover: none) {
+  .UNagent-mention-hint {
+    display: none;
+  }
+
+  /* Bigger touch targets where there is no hover feedback. */
+  .UNagent-composer-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Small phones: tighten the chrome so the textarea keeps its room. */
+@media (max-width: 400px) {
+  .UNagent-composer-wrap {
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Same keyboard-gap fix for small phones (see base rule above).
+     :focus-within removed to prevent first-tap jitter (see base rule). */
+  .UNagent-chat.is-keyboard .UNagent-composer-wrap {
+    padding-bottom: 6px;
+  }
+
+  .UNagent-composer {
+    padding: 4px 5px 4px 6px;
+  }
+
+  .UNagent-chat-messages {
+    padding: 8px;
+  }
+}
+
+.UNagent-mention-head .UNagent-mention-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none; /* core `button` (0,1,1) repaints at rest — (0,2,0) wins */
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 8px;
+  min-height: 28px;
+  border-radius: var(--radius-s);
+}
+
+.UNagent-mention-hint + .UNagent-mention-close {
+  margin-left: 0;
+}
+
+.UNagent-mention-head .UNagent-mention-close:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+/* Paperclip → 从库中选择: the picker grows its own search box (its query is
+   typed here, not into the composer). */
+.UNagent-mention-searchrow {
+  padding: 8px 8px 0;
+  flex-shrink: 0;
+}
+
+.UNagent-mention-search {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 16px; /* iOS zoom prevention */
+  font-family: inherit;
+  border-radius: var(--radius-s);
+}
+
+.UNagent-mention-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px;
+}
+
+/* Type badge at the right edge of each row (笔记/文件夹/标签/当前 or 官方/用户
+   in the slash picker) — replaces the old per-kind sections. */
+.UNagent-mention-badge {
+  flex-shrink: 0;
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0 7px;
+}
+
+.UNagent-mention-badge--folder {
+  color: var(--text-accent);
+}
+
+.UNagent-mention-badge--tag {
+  color: var(--color-purple, var(--text-accent));
+}
+
+.UNagent-mention-badge--active {
+  color: var(--text-on-accent, #fff);
+  background: var(--interactive-accent);
+  border-color: transparent;
+}
+
+.UNagent-mention-badge--selected {
+  color: #fff;
+  background: #3b82f6;
+  border-color: transparent;
+}
+
+/* Multi-select (用户指示): running summary + confirm button + selected tint. */
+/* 追加㊳：数量徽章本身就是确认钮（原独立确认按钮已删）——它现在是
+   <button>，静止态规则升 (0,2,0) 压住 core button 的 chrome，hover 只加
+   深一点底色。 */
+.UNagent-mention-head .UNagent-mention-summary {
+  flex-shrink: 0;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 1px 8px;
+  min-height: 0;
+  border: none;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+}
+.UNagent-mention-head .UNagent-mention-summary:hover {
+  background: rgba(59, 130, 246, 0.22);
+}
+.UNagent-mention-item.is-selected {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Per-row management actions (conversation manager: rename / branch /
+   delete). Always faintly visible — mobile has no hover — and brighten on
+   hover; the delete action is the only colored (error) one. */
+.UNagent-mention-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.UNagent-mention-actions .UNagent-mention-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0.65;
+  transition:
+    opacity 0.1s ease,
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.UNagent-mention-actions .UNagent-mention-action:hover {
+  opacity: 1;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-mention-action.is-danger:hover {
+  color: var(--text-error);
+  background: var(--background-modifier-error);
+}
+
+.UNagent-mention-action .UNagent-icon {
+  font-size: 14px;
+}
+
+/* ── conversation manager page (picker variant="chats") ──────────────
+   Roomier rows, tinted icon tiles and a highlighted first "新建对话" row
+   turn the plain picker into a proper conversation management sheet. */
+.UNagent-chats .UNagent-mention-item {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  gap: 10px;
+}
+.UNagent-chats .UNagent-mention-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 15px;
+}
+/* The "新建对话" row stands out: accent tile + accent label. */
+.UNagent-chats .UNagent-mention-item:first-child .UNagent-mention-icon {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  color: var(--interactive-accent);
+}
+.UNagent-chats .UNagent-mention-item:first-child .UNagent-mention-name {
+  color: var(--interactive-accent);
+  font-weight: var(--font-semibold, 600);
+}
+/* The conversation currently open: soft accent tint + left edge
+   (items reserve a 2px border-left, reused here). */
+.UNagent-chats .UNagent-mention-item.is-current {
+  border-left-color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 8%, transparent);
+}
+/* 追加59: 当前会话 badge 从「当前」改为 agent 名称——长名时省略号截断，
+   不让它挤掉右侧的管理命令；非当前会话无边框/背景（is-current 仅当前行）。 */
+.UNagent-chats .UNagent-mention-badge {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.UNagent-chats .UNagent-mention-item.is-current .UNagent-mention-icon {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  color: var(--interactive-accent);
+}
+/* Keep the tint when the current row is also keyboard-highlighted
+   (beats the generic --active hover background by specificity). */
+.UNagent-chats .UNagent-mention-item.is-current:hover,
+.UNagent-chats .UNagent-mention-item.is-current.UNagent-mention-item--active {
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+}
+/* A thin divider sets the management actions apart from the label. */
+.UNagent-chats .UNagent-mention-actions {
+  padding-left: 6px;
+  margin-left: 2px;
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+/* Conversation manager — compact & clean (追加⑱ 补刀): roughly HALF its old
+   height — a halved max-height cap plus single-line rows with a smaller
+   icon tile. Overrides both the floating (46vh/340px) and docked
+   (60vh/480px) caps. */
+.UNagent-mention.UNagent-chats {
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.22), 170px);
+}
+
+.UNagent-chats .UNagent-mention-head {
+  display: none;
+}
+
+.UNagent-chats .UNagent-mention-item {
+  padding: 2px 6px;
+  min-height: 28px;
+  gap: 8px;
+}
+
+.UNagent-chats .UNagent-mention-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 13px;
+}
+
+/* Single-line rows: title + inline description. */
+.UNagent-chats .UNagent-mention-text {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.UNagent-chats .UNagent-mention-name,
+.UNagent-chats .UNagent-mention-sub {
+  min-width: 0;
+}
+
+.UNagent-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  min-height: 40px; /* comfortable touch target */
+  border-radius: var(--radius-s);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.UNagent-mention-item:hover,
+.UNagent-mention-item--active {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-mention-item--active {
+  border-left-color: var(--interactive-accent);
+}
+
+.UNagent-mention-icon {
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  font-size: 15px;
+}
+
+.UNagent-mention-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.UNagent-mention-name {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.UNagent-mention-name mark {
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+  background: rgba(128, 128, 255, 0.28);
+  background: color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+.UNagent-mention-sub {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The English command word trailing a Chinese label ("深度思考 /think") —
+   deliberately faint and monospace: the command is typeable, the label is
+   what you scan. */
+.UNagent-mention-cmd {
+  margin-left: 7px;
+  font-size: 0.86em;
+  font-weight: 400;
+  font-family: var(--font-monospace);
+  color: var(--text-faint);
+  opacity: 0.85;
+}
+
+.UNagent-mention-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+}
+
+/* Confirm modal */
+.UNagent-confirm-message {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 12px;
+}
+
+/* Generated-image blocks */
+.UNagent-image {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.UNagent-image-thumb {
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  object-fit: contain;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--ai-surface);
+}
+
+.UNagent-image-missing {
+  font-size: var(--font-ui-small);
+  color: var(--text-error);
+  padding: 6px 8px;
+  background: var(--background-modifier-error);
+  border-radius: var(--radius-s);
+  word-break: break-all;
+}
+
+.UNagent-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+/* Small icon button row below each generated image. */
+.UNagent-image-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: var(--interactive-normal);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* (0,2,0) chrome kill — keep the designed flat look. */
+.UNagent-chat .UNagent-image-icon-btn {
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-image-icon-btn:hover {
+  background: var(--interactive-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-image-icon-btn:active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.UNagent-image-icon-btn--danger:hover {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+.UNagent-image-icon-btn--danger:active {
+  background: var(--text-error);
+  color: var(--text-on-accent);
+}
+
+/* Settings: horizontal tab bar (scrollable on phones) + pane area */
+.UNagent-settings-nav {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin: -8px -4px 4px;
+  padding: 0 4px;
+  overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--background-primary);
+  -webkit-overflow-scrolling: touch;
+}
+
+.UNagent-settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  min-height: 42px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.UNagent-settings-tab:hover {
+  color: var(--text-normal);
+}
+
+.UNagent-settings-tab.is-active {
+  color: var(--text-normal);
+  border-bottom-color: var(--interactive-accent);
+}
+
+.UNagent-settings-tab-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.UNagent-settings-tab-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+/* 追加㉜：「模型」页两大板块（默认模型 / 配置厂商）之间再拉开一点，
+   setHeading 自带的顶部分隔线保留。 */
+.UNagent-section-heading {
+  margin-top: 28px;
+}
+
+/* Model combobox in VendorModal — manual add input + suggestion dropdown. */
+.UNagent-model-combo {
+  position: relative;
+  margin: 8px 0;
+}
+
+.UNagent-model-combo-input {
+  width: 100%;
+}
+
+.UNagent-model-combo-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 2px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-s);
+}
+
+.UNagent-model-combo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.UNagent-model-combo-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-model-combo-name {
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.UNagent-model-combo-empty {
+  padding: 8px 10px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.UNagent-model-combo-hint {
+  margin: 4px 0 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+/* Added model rows — simple list under the combobox. */
+.UNagent-model-rows {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin: 8px 0;
+}
+
+.UNagent-model-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  gap: 8px;
+}
+
+.UNagent-model-row-name {
+  font-weight: 500;
+  font-size: var(--font-ui-small);
+  word-break: break-all;
+}
+
+.UNagent-model-row-desc {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 追加60: 齿轮 + 叉叉统一右侧按钮组——同尺寸/同图标规格/同 hover。 */
+.UNagent-model-row .UNagent-model-row-actions {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.UNagent-model-row .UNagent-model-row-actions svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Delete button — two-class base rule (0,2,0) so it beats Obsidian's core
+   button:not(.clickable-icon) (0,1,1) resting-state background/box-shadow. */
+.UNagent-model-row .UNagent-model-del {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.UNagent-model-row .UNagent-model-del:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Capability badges — inline tags next to model name */
+.UNagent-cap-badges {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.UNagent-cap-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Gear button — opens capability editor */
+.UNagent-cap-gear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.UNagent-cap-gear:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-cap-gear svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Expandable capability editor panel */
+.UNagent-cap-editor {
+  padding: 10px 12px 8px;
+  margin: 0 0 4px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.UNagent-cap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.UNagent-cap-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.UNagent-cap-cell input[type='checkbox'] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.UNagent-cap-cell label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.UNagent-cap-nums {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.UNagent-cap-num-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.UNagent-cap-num-label {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.UNagent-cap-num-cell input[type='number'] {
+  width: 90px;
+  padding: 2px 6px;
+  font-size: var(--font-ui-smaller);
+}
+
+.UNagent-cap-reset-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.UNagent-cap-reset {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.UNagent-cap-reset:hover {
+  color: var(--text-normal);
+  border-color: var(--interactive-accent);
+}
+
+.UNagent-skill-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  font-size: 14px;
+  color: var(--text-muted);
+  vertical-align: -2px;
+}
+
+.UNagent-skill-icon svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2;
+}
+
+/* ── 追加85: 引用原文独立窗（官方 Modal，ref chip 点击弹出）─────────────
+   选中原文不进官方预览窗；这个小窗只排版「引自哪 + 原文 + 打开来源」。 */
+/* 追加86: 侧边栏/手机适配——默认 --dialog-width 在窄面板里顶满，
+   限到 430px（小屏留 32px 边距）；定位/遮罩仍由官方 Modal 托管。 */
+.UNagent-snippet-modal-wrap {
+  width: min(430px, calc(100vw - 32px));
+}
+
+.UNagent-snippet-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.UNagent-snippet-modal-title {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+}
+
+.UNagent-snippet-modal-text {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--interactive-accent);
+  background: var(--background-secondary);
+  border-radius: var(--radius-s);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.UNagent-snippet-modal button {
+  align-self: flex-start;
+}
+
+/* 补刀·五十六: hermes ACP 权限审批面板 —— 输入框上方卡片：工具标题 +
+   命令文本/编辑 diff 预览 + 选项按钮组。按钮基规则一律 (0,2,0) +
+   box-shadow/outline: none（核心 button 样式覆盖铁律），触屏 ≥32px。 */
+.UNagent-hermes-approval {
+  margin: 0 10px 8px;
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.5), 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.UNagent-hermes-approval-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.UNagent-hermes-approval-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-accent);
+  /* M2-T8 收口：撑开剩余空间，把关闭按钮与 Yes/No 按钮组推到第一行最右 */
+  margin-right: auto;
+}
+
+.UNagent-hermes-approval-kind {
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.UNagent-hermes-approval-kind[data-kind='execute'],
+.UNagent-hermes-approval-kind[data-kind='delete'] {
+  color: var(--text-error);
+  border-color: var(--text-error);
+}
+
+.UNagent-hermes-approval-tool {
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.UNagent-hermes-approval-text {
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* M2-T7：edit 类审批的 unified diff（等宽、增绿删红、折叠 + 内部滚动）。
+   全部作用域在 .UNagent-hermes-approval 容器类下，按钮基规则带容器
+   前缀（特异度 ≥0,2,0）+ box-shadow/outline: none，防核心
+   button:not(.clickable-icon)（0,1,1）盖过。着色走 --text-success /
+   --text-error 与 --background-primary 的 color-mix，随主题自适应。 */
+.UNagent-hermes-approval-diff-file {
+  margin: 6px 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+.UNagent-hermes-approval-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+
+.UNagent-hermes-approval-diff-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* 路径超长时优先保留文件名（尾部） */
+  text-align: left;
+}
+
+.UNagent-hermes-approval-diff-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+}
+
+.UNagent-hermes-approval-diff-add {
+  color: var(--text-success);
+}
+
+.UNagent-hermes-approval-diff-del {
+  color: var(--text-error);
+}
+
+.UNagent-hermes-approval-diff-badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text-success) 45%, transparent);
+  background: color-mix(in srgb, var(--text-success) 10%, transparent);
+  color: var(--text-success);
+  font-size: 10px;
+  font-family: var(--font-interface);
+  line-height: 16px;
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-diff-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-diff-toggle:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-hermes-approval-diff-body {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* 折叠态只露预览行——收起滚动，由「展开」按钮接管。 */
+.UNagent-hermes-approval-diff-body[data-collapsed='true'] {
+  max-height: none;
+  overflow: hidden;
+}
+
+.UNagent-hermes-approval-diff-line {
+  display: flex;
+  align-items: stretch;
+  white-space: pre;
+}
+
+.UNagent-hermes-approval-diff-line[data-diff-type='add'] {
+  background: color-mix(in srgb, var(--text-success) 12%, transparent);
+}
+
+.UNagent-hermes-approval-diff-line[data-diff-type='del'] {
+  background: color-mix(in srgb, var(--text-error) 10%, transparent);
+}
+
+.UNagent-hermes-approval-diff-sign {
+  flex: 0 0 auto;
+  width: 20px;
+  padding-left: 6px;
+  text-align: center;
+  user-select: none;
+  color: var(--text-faint);
+}
+
+.UNagent-hermes-approval-diff-line[data-diff-type='add']
+  .UNagent-hermes-approval-diff-sign {
+  color: var(--text-success);
+}
+
+.UNagent-hermes-approval-diff-line[data-diff-type='del']
+  .UNagent-hermes-approval-diff-sign {
+  color: var(--text-error);
+}
+
+.UNagent-hermes-approval-diff-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-normal);
+}
+
+.UNagent-hermes-approval-diff-line[data-diff-type='ctx']
+  .UNagent-hermes-approval-diff-text {
+  color: var(--text-muted);
+}
+
+.UNagent-hermes-approval-diff-note {
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* M2-T8 收口：actions 并入 header 行（标题右侧右对齐），不再独占底部一行。
+   按钮高度 24px 与 header 行（font-ui-smaller 标题 + 徽章）等高适配。 */
+.UNagent-hermes-approval-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+
+/* 追加92: Yes / No / × 三按钮视觉统一——同高 24px、同圆角 8px、同边框/
+   背景/hover 骨架，语义仅靠颜色区分（allow=accent、deny=error、
+   close=muted），不再各有各的边框/背景形态。 */
+.UNagent-hermes-approval .UNagent-hermes-approval-option,
+.UNagent-hermes-approval .UNagent-hermes-approval-deny,
+.UNagent-hermes-approval .UNagent-hermes-approval-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-option:hover,
+.UNagent-hermes-approval .UNagent-hermes-approval-deny:hover,
+.UNagent-hermes-approval .UNagent-hermes-approval-close:hover {
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-option {
+  padding: 2px 10px;
+}
+
+.UNagent-hermes-approval
+  .UNagent-hermes-approval-option[data-option-kind='allow'] {
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-deny {
+  padding: 2px 10px;
+  color: var(--text-error);
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-close {
+  width: 24px;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.UNagent-hermes-approval .UNagent-hermes-approval-close:hover {
+  color: var(--text-normal);
+}
+
+/* ════════════════════════════════════════════════════════════════════
