@@ -1,6 +1,6 @@
 {
   "name": "UNagent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Mobile-first, lightweight AI assistant plugin for Obsidian.",
   "main": "main.js",
   "scripts": {
