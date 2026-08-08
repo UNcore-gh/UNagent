@@ -514,9 +514,9 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(
     // ONE synchronous block — no paint in between, so no flicker. CSS
     // min-height keeps the collapsed box at its resting height, which also
     // becomes the empty-state floor.
-    el.style.height = '0px'
+    el.setCssStyles({ height: '0px' })
     const targetH = Math.min(el.scrollHeight, cap)
-    el.style.height = `${targetH}px`
+    el.setCssStyles({ height: `${targetH}px` })
     syncOverlayFor(15)
   }, [syncOverlayFor])
 

@@ -45,7 +45,7 @@ export class NameInputModal extends Modal {
           this.finish(true)
         }
       })
-      text.inputEl.style.width = '100%'
+      text.inputEl.setCssStyles({ width: '100%' })
     })
 
     new Setting(contentEl)

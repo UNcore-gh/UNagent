@@ -50,7 +50,7 @@ export class ChatView extends ItemView {
       // host padding stacks a gap below the composer that survives
       // keyboard-open — the on-screen keyboard covers the safe-area strip,
       // turning that padding into dead space between the input and the keys.
-      container.style.padding = '0'
+      container.setCssStyles({ padding: '0' })
       this.root = createRoot(container)
       this.root.render(<ChatApp plugin={this.plugin} leaf={this.leaf} />)
       void bootLog(this.plugin.app, 'chatview:onOpen-rendered')

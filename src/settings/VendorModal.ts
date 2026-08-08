@@ -369,7 +369,7 @@ export class VendorModal extends Modal {
 
     const openDropdown = (): void => {
       this.dropdownOpen = true
-      suggestionsEl.style.display = ''
+      suggestionsEl.setCssStyles({ display: '' })
       this.renderSuggestions(suggestionsEl)
       void this.ensureFetched()
     }
@@ -379,7 +379,7 @@ export class VendorModal extends Modal {
       this.addInputValue = inputEl.value
       if (!this.dropdownOpen) {
         this.dropdownOpen = true
-        suggestionsEl.style.display = ''
+        suggestionsEl.setCssStyles({ display: '' })
         void this.ensureFetched()
       }
       this.renderSuggestions(suggestionsEl)
@@ -390,14 +390,14 @@ export class VendorModal extends Modal {
         this.addModelByName(this.addInputValue.trim())
       } else if (ev.key === 'Escape') {
         this.dropdownOpen = false
-        suggestionsEl.style.display = 'none'
+        suggestionsEl.setCssStyles({ display: 'none' })
       }
     })
     // Close on outside click (mousedown fires before input blur).
     const onDocMouseDown = (ev: MouseEvent): void => {
       if (!comboWrap.contains(ev.target as Node)) {
         this.dropdownOpen = false
-        suggestionsEl.style.display = 'none'
+        suggestionsEl.setCssStyles({ display: 'none' })
       }
     }
     document.addEventListener('mousedown', onDocMouseDown)
@@ -434,21 +434,21 @@ export class VendorModal extends Modal {
         setIcon(gearBtn, 'settings')
         gearBtn.setAttribute('aria-label', '能力设置')
         const editorEl = listEl.createDiv('UNagent-cap-editor')
-        editorEl.style.display = 'none'
+        editorEl.setCssStyles({ display: 'none' })
         gearBtn.addEventListener('click', () => {
           const isExpanded = editorEl.style.display !== 'none'
           if (isExpanded) {
-            editorEl.style.display = 'none'
+            editorEl.setCssStyles({ display: 'none' })
             this.expandedEditors.delete(model.name)
           } else {
-            editorEl.style.display = ''
+            editorEl.setCssStyles({ display: '' })
             this.expandedEditors.add(model.name)
             editorEl.empty()
             this.renderCapEditor(editorEl, model.name, badgesEl)
           }
         })
         if (this.expandedEditors.has(model.name)) {
-          editorEl.style.display = ''
+          editorEl.setCssStyles({ display: '' })
           this.renderCapEditor(editorEl, model.name, badgesEl)
         }
 

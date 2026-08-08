@@ -1,5 +1,6 @@
 import { Plugin, Platform, TAbstractFile, WorkspaceLeaf, addIcon, normalizePath, Notice } from 'obsidian'
 import type { Root } from 'react-dom/client'
+import { getUserAgent } from './utils/userAgent'
 import { AgentBridge } from './components/chat-view/agentBridge'
 import { mountAgentHost } from './components/chat-view/AgentHost'
 import { ChatView } from './components/chat-view/ChatView'
@@ -247,7 +248,7 @@ export default class ObsidianAI extends Plugin {
       // APIs behave per Chromium version), so record it once per boot.
       await bootLog(
         this.app,
-        `diag:ua ${navigator.userAgent.slice(0, 140)}`,
+        `diag:ua ${getUserAgent().slice(0, 140)}`,
       )
       // Global safety net: catch THIS plugin's errors that escape the
       // try-catch below — primarily unhandled promise rejections from React
@@ -1088,7 +1089,7 @@ export default class ObsidianAI extends Plugin {
       'lifecycle',
       `diagnostics enabled · plugin=${this.manifest.version}` +
         ` obsidian=${obsidianVersion ?? '?'}` +
-        ` ua=${navigator.userAgent.slice(0, 120)}`,
+        ` ua=${getUserAgent().slice(0, 120)}`,
     )
   }
 
@@ -1108,7 +1109,7 @@ export default class ObsidianAI extends Plugin {
         '# 诊断日志\n\n' +
         `- 导出时间：${new Date().toLocaleString()}\n` +
         `- 插件版本：${this.manifest.version}\n` +
-        `- 环境：${navigator.userAgent}\n\n` +
+        `- 环境：${getUserAgent()}\n\n` +
         '> 日志只记录插件运行活动（启动阶段、模型请求状态、工具调用结果、错误信息），' +
         '不包含 API 密钥、请求正文或笔记内容。请把整篇内容发给开发者排查问题。\n\n' +
         '```\n' +

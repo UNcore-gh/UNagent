@@ -208,7 +208,7 @@ export function getDesktopSpawn(): SpawnLike | null {
     return null
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-var-requires -- child_process is a Node builtin; require() is the only way to load it in this esbuild bundler context (dynamic import is unreliable under the Obsidian loader).
     const cp = require('child_process') as { spawn?: unknown }
     cachedSpawn =
       typeof cp?.spawn === 'function'

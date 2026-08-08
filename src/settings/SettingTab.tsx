@@ -1462,7 +1462,7 @@ export class SettingTab extends PluginSettingTab {
     const guide = pane.createEl('p', {
       cls: 'setting-item-description',
     })
-    guide.style.whiteSpace = 'pre-line'
+    guide.setCssStyles({ whiteSpace: 'pre-line' })
     guide.createEl('strong', { text: '首次配置指引（hermes 未配置凭据时看这里）' })
     guide.createEl('br')
     guide.appendText(buildAuthGuideText(cfg.guidedEndpoint))

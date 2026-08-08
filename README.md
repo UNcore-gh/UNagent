@@ -1,8 +1,10 @@
-# OBot（AI Assistant）
+# UNagent
 
 **给 Obsidian 用户的移动优先 AI 助手——手机平板上轻量自足，桌面上经 hermes ACP 拥有重度任务能力。**
 
-插件 id 是 `obsidian-ai`、显示名是「AI Assistant」（这两个不动），OBot 是我们对外的叫法。核心是「纯插件内 JS + 远程 HTTP」：不依赖任何 LLM SDK（原生 `fetch` + 手写 SSE），移动端零本地进程；桌面端在此之上多一条 hermes ACP 的重度通道，仅此一条。
+> **English:** UNagent is a mobile-first AI assistant plugin for Obsidian — lightweight and self-contained on phones and tablets, and able to take on heavy-duty tasks on desktop through the hermes ACP integration. It relies on in-plugin JavaScript + remote HTTP only (native `fetch` with hand-written SSE), has no LLM SDK dependencies, and runs no local processes on mobile.
+
+插件 id 是 `unagent`、显示名是「UNagent」，作者 UNcore。核心是「纯插件内 JS + 远程 HTTP」：不依赖任何 LLM SDK（原生 `fetch` + 手写 SSE），移动端零本地进程；桌面端在此之上多一条 hermes ACP 的重度通道，仅此一条。
 
 ---
 
@@ -13,17 +15,17 @@
 目前手动安装。把构建产物三件套放进你的 vault：
 
 ```
-<你的 vault>/.obsidian/plugins/obsidian-ai/
+<你的 vault>/.obsidian/plugins/unagent/
 ├── main.js
 ├── manifest.json
 └── styles.css
 ```
 
-然后 设置 → 第三方插件 → 启用「AI Assistant」。左侧栏 ✨ 图标或命令面板「Open AI Assistant chat」打开对话框。
+然后 设置 → 第三方插件 → 启用「UNagent」。左侧栏 ✨ 图标或命令面板「Open UNagent chat」打开对话框。
 
 ### 第二步：添加模型档案
 
-设置 → AI Assistant →「模型」标签页 → 点「模型厂商」标题行右侧的 **「＋ 添加厂商」**，在弹窗里填三项关键配置：
+设置 → UNagent →「模型」标签页 → 点「模型厂商」标题行右侧的 **「＋ 添加厂商」**，在弹窗里填三项关键配置：
 
 1. **API 协议**（下拉）：选你的服务商协议（OpenAI 兼容 / Anthropic 等），选完会自动回填对应的默认地址；
 2. **API 地址**：即 Base URL，接口地址不含 `/chat/completions` 等路径后缀（选协议时已预填，可任意改写）；
@@ -57,7 +59,7 @@
 
 ### 重层：仅桌面，可选增强，需本机安装 hermes
 
-hermes 是一个本机命令行 agent。装上之后 OBot 经 ACP 协议把它接进对话：
+hermes 是一个本机命令行 agent。装上之后 UNagent 经 ACP 协议把它接进对话：
 
 - **`/hermes <任务>`**：把复杂任务分派给本机 hermes 执行——过程可见（工具卡片、计划清单），结果回到对话历史，主 agent 可基于结果继续；
 - **engine: hermes 子代理**：在 subagent.md frontmatter 里写 `engine: hermes`，该代理的整个对话走 hermes 引擎；
@@ -132,7 +134,7 @@ hermes 是一个本机命令行 agent。装上之后 OBot 经 ACP 协议把它�
 ## 开发（给改代码的人）
 
 ```bash
-cd obsidian-ai
+cd unagent
 npm install
 npm run dev      # esbuild watch，自动同步产物到测试 vault
 npm run build    # tsc strict 类型检查 + esbuild 生产构建 → main.js / manifest.json / styles.css
