@@ -3,6 +3,9 @@
 # runtime data (may contain API keys — never commit)
 data.json
 
+# dependencies
+node_modules/
+
 # system
 .DS_Store
 
