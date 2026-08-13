@@ -188,7 +188,7 @@
 }
 
 /* Hermes 连接状态灯（补刀·五十九）：pill 内嵌 8px 圆点。
-   灰=未连接/连接中、绿=已就绪、红=失败——三态颜色走主题变量（明暗主题
+   红=未连接/失败、灰=连接中、绿=已就绪——三态颜色走主题变量（明暗主题
    都适配）；is-active（hermes 对话）实心强调底上补白色内描边保可辨。 */
 .UNagent-chat-header .UNagent-hermes-status {
   display: inline-block;
@@ -200,6 +200,13 @@
   background: var(--text-faint);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
   vertical-align: middle;
+}
+
+/* idle = 尚未连接：红（未联通即为红，确认联通后才变绿）——
+   半透明红与 failed 的实心红区分「未尝试」与「已失败」。 */
+.UNagent-chat-header .UNagent-hermes-status--idle {
+  background: var(--color-red, #e53935);
+  opacity: 0.55;
 }
 
 .UNagent-chat-header .UNagent-hermes-status--ready {

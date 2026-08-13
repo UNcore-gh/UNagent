@@ -9,6 +9,9 @@ node_modules/
 # system
 .DS_Store
 
+# local workspace docs (not part of the published plugin)
+video-scripts.md
+
 # source & dev files — removed from the public repo, kept in UNagent-src
 /src/
 package.json
