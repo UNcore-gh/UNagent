@@ -1481,18 +1481,29 @@
    追加90: 布局用 inline-block（CSS2 baseline 语义确定），不用 inline-flex
    ——flex 容器的基线实现因浏览器而异，实测在正文/气泡两侧都有偏移。 */
 .UNagent-markdown .UNagent-output-mention {
+  /* 追加97（用户报「渲染块高了一圈、和文字不对齐」）：对齐策略从
+     baseline 改为 middle——胶囊与正文行垂直居中，不再贴着基线导致
+     文字在胶囊里偏上/偏下；上下 padding 归零，胶囊高度只由内容
+     （0.9em 字号 + 1.4 行高）决定，不再比正文文字高出一圈。 */
   /* 追加90: 回归 inline-block——CSS2 §10.8.1 明确的 baseline 语义
      （baseline = 最后一个行盒的基线 = 内部文字基线），所有浏览器实现
      一致，不受 flex 容器基线实现差异影响（实测 Chromium 下 inline-flex
      的基线取第一个 flex item，在正文/气泡两侧均有偏移）。 */
   display: inline-block;
-  vertical-align: baseline;
+  vertical-align: middle;
   line-height: 1.4;
   font-size: 0.9em;
-  padding: 1px 6px;
+  padding: 0 6px;
   margin: 0;
   color: var(--text-muted);
   white-space: nowrap;
+  /* 追加96: 窄侧边栏安全网——引用原文再长也不能把 chip 撑出显示范围：
+     max-width 相对所在段落收缩，超出改为省略号（text-overflow 需要
+     overflow:hidden + 原子 inline-block）。消息引用 chip 已不内嵌原文，
+     此规则兜底笔记/画布/表格引用的超长摘要。 */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Inline command/skill pills in message bodies (追加㊺): same quiet family as
    the composer token — barely-green surface, muted ink, flows inline with
@@ -1501,14 +1512,18 @@
 .UNagent-markdown .UNagent-output-command {
   /* 追加90: 与引用 chip 同款——回归 inline-block（见上注）。 */
   display: inline-block;
-  vertical-align: baseline;
+  vertical-align: middle;
   line-height: 1.4;
   font-size: 0.9em;
-  padding: 1px 6px;
+  padding: 0 6px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--text-success) 8%, transparent);
   color: var(--text-muted);
   white-space: nowrap;
+  /* 追加96: 同款窄栏安全网（技能名超长也不撑爆）。 */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* 追加93: icon 前置（first-child）、label 后置——视觉顺序 @引用；inline-block
    的 baseline = 最后一个行盒的基线 = 文字基线，与子元素顺序无关，icon 以
@@ -1533,14 +1548,14 @@
   color: inherit;
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
-/* 追加87: 用户气泡内 chip 与正文严格基线对齐——双前缀把特异性提到
+/* 追加87: 用户气泡内 chip 与正文垂直居中（追加97：用户指示中心对齐）——双前缀把特异性提到
    (0,3,0)，压住任何主题/核心对 accent 表面上 a.internal-link 注入的
    vertical-align（用户报：hermes 模式发送后气泡里引用块与文本错位成
    居中）。基线规则本身在 .UNagent-markdown 级已存在，这里是气泡
    语境下的钉死副本。 */
 .UNagent-message--user .UNagent-markdown .UNagent-output-mention,
 .UNagent-message--user .UNagent-markdown .UNagent-output-command {
-  vertical-align: baseline;
+  vertical-align: middle;
 }
 /* Re-enable hover on the anchor over the pointer-events:none overlay; the
    chip itself stays inert (click doesn't navigate the editor). */
@@ -1693,6 +1708,50 @@
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s);
   animation: UNagent-chip-in 0.16s ease-out;
+}
+
+/* 指令队列提示条（追加 N+）：输出尚未结束时发送的消息进入队列，当前
+   回复结束后自动逐条发送——输入区上方一条浅色小徽章显示待发数量，附
+   ✕ 可一键清空队列。与 .UNagent-composer-saving 同族风格。 */
+.UNagent-queue-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--ai-surface));
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+  border-radius: var(--radius-s);
+  animation: UNagent-chip-in 0.16s ease-out;
+}
+
+.UNagent-queue-bar-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.UNagent-queue-bar .UNagent-queue-bar-clear {
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.UNagent-queue-bar .UNagent-queue-bar-clear:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
 .UNagent-composer-saving-dot {
@@ -2814,7 +2873,7 @@
    icon tile. Overrides both the floating (46vh/340px) and docked
    (60vh/480px) caps. */
 .UNagent-mention.UNagent-chats {
-  max-height: min(calc(var(--ai-vvh, 100vh) * 0.22), 170px);
+  max-height: min(calc(var(--ai-vvh, 100vh) * 0.25), 200px);
 }
 
 .UNagent-chats .UNagent-mention-head {
@@ -2822,8 +2881,8 @@
 }
 
 .UNagent-chats .UNagent-mention-item {
-  padding: 2px 6px;
-  min-height: 28px;
+  padding: 3px 6px;
+  min-height: 34px;
   gap: 8px;
 }
 
@@ -2833,16 +2892,33 @@
   font-size: 13px;
 }
 
-/* Single-line rows: title + inline description. */
+/* 两行式行：标题在上，元数据（消息数 · 时间等）在下——标题不再被
+   同行内容挤压截断；元数据行字号更小、颜色更浅、行高收窄，占空间
+   尽可能少。 */
 .UNagent-chats .UNagent-mention-text {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
 }
 
-.UNagent-chats .UNagent-mention-name,
+.UNagent-chats .UNagent-mention-name {
+  min-width: 0;
+  width: 100%;
+  line-height: 1.35;
+}
+
+/* 元数据行（消息数 / 上次对话时间 / 子对话 / Hermes 等）：比普通
+   --font-ui-smaller 再小一号、再浅一档，不换行、超长省略。 */
 .UNagent-chats .UNagent-mention-sub {
   min-width: 0;
+  width: 100%;
+  font-size: calc(var(--font-ui-smaller) * 0.85);
+  line-height: 1.25;
+  color: var(--text-faint);
+  opacity: 0.82;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .UNagent-mention-item {
@@ -3003,6 +3079,370 @@
 .UNagent-image-icon-btn--danger:active {
   background: var(--text-error);
   color: var(--text-on-accent);
+}
+
+.UNagent-image-icon-btn--danger:active {
+  background: var(--text-error);
+  color: var(--text-on-accent);
+}
+
+/* 生成卡片：图片文件名可直接点击，在主窗口打开对应文件 */
+.UNagent-image-filename {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  color: var(--text-accent);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  text-decoration: none;
+}
+
+.UNagent-chat .UNagent-image-filename {
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-image-filename:hover {
+  color: var(--text-accent-hover, var(--text-accent));
+  text-decoration: underline;
+  background: var(--background-modifier-hover);
+}
+
+.UNagent-image-filename-verb {
+  flex: none;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.UNagent-image-filename-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 通用生成文件卡片（追加91 重构：头部 + 预览框 + 审批 + 操作行）─ */
+.UNagent-filecard {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 8px);
+  background: var(--ai-surface);
+}
+
+/* 第一行：图标 + 操作名 + 文件名（内部链接） */
+.UNagent-filecard-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.UNagent-filecard-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.UNagent-filecard-icon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
+.UNagent-filecard-head-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.UNagent-filecard-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.UNagent-filecard-verb {
+  flex: none;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.UNagent-filecard-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.UNagent-chat .UNagent-filecard-name {
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-filecard-name:hover {
+  color: var(--text-accent-hover, var(--text-accent));
+  text-decoration: underline;
+}
+
+.UNagent-filecard-name:disabled,
+.UNagent-filecard-name--missing {
+  color: var(--text-faint);
+  cursor: default;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.UNagent-filecard-path {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 中间预览框：文本固定高度可滚动；图片完整显示 */
+.UNagent-filecard-preview-wrap {
+  position: relative;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+.UNagent-filecard-preview-wrap--image {
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
+.UNagent-filecard-preview {
+  height: 150px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  overscroll-behavior: contain;
+}
+
+.UNagent-filecard-preview--md {
+  padding: 4px 8px;
+}
+
+.UNagent-filecard-preview-empty {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  text-align: center;
+  word-break: break-all;
+}
+
+.UNagent-filecard-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-s, 4px);
+}
+
+/* diff 视图（编辑卡片）：浅红=删除，浅绿=添加。修改数量 +N −M 放在底部
+   操作行（追加94），紧贴对错按钮左侧。 */
+.UNagent-diff-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+.UNagent-diff-stats-add { color: #4caf50; font-weight: 600; }
+.UNagent-diff-stats-del { color: #e53935; font-weight: 600; }
+.UNagent-diff-stats-trunc {
+  color: var(--text-faint);
+  font-family: var(--font-interface);
+  white-space: normal;
+}
+
+/* 追加94：数字组推到操作行右端，对错按钮紧跟其后同排。 */
+.UNagent-filecard-actions .UNagent-diff-stats {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.UNagent-filecard-actions .UNagent-diff-stats + .UNagent-approve-group {
+  margin-left: 0;
+}
+
+.UNagent-diff {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.55;
+}
+
+.UNagent-diff-line {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.UNagent-diff-gutter {
+  flex: none;
+  width: 1.2em;
+  text-align: center;
+  user-select: none;
+  opacity: 0.85;
+  color: var(--text-faint);
+}
+
+.UNagent-diff-line--add { background: rgba(76, 175, 80, 0.13); }
+.UNagent-diff-line--add .UNagent-diff-gutter { color: #4caf50; opacity: 1; }
+.UNagent-diff-line--del { background: rgba(229, 57, 53, 0.11); }
+.UNagent-diff-line--del .UNagent-diff-gutter { color: #e53935; opacity: 1; }
+
+/* 审批结果状态条 */
+.UNagent-decision {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-m, 8px);
+  font-size: var(--font-ui-smaller);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.UNagent-decision svg {
+  width: 13px;
+  height: 13px;
+}
+
+.UNagent-decision--accepted {
+  color: #2e7d32;
+  background: rgba(76, 175, 80, 0.14);
+}
+
+.UNagent-decision--rejected {
+  color: #c62828;
+  background: rgba(229, 57, 53, 0.12);
+}
+
+/* 底部操作按钮：无框体纯图标（审批✓✗/引用/复制地址/复制内容/分享/打开） */
+.UNagent-filecard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0;
+}
+
+.UNagent-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s, 4px);
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.UNagent-chat .UNagent-icon-btn {
+  box-shadow: none;
+  outline: none;
+}
+
+.UNagent-icon-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.UNagent-icon-btn:active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.UNagent-icon-btn--danger:hover {
+  color: var(--text-error);
+}
+
+/* 追加93：接受/拒绝并入底部按钮行右侧——与左侧普通操作按钮隔开，
+   margin-left:auto 推右 + 细分隔线，仍是同款无框体纯图标。 */
+.UNagent-approve-group {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 6px;
+  border-left: 1px solid var(--background-modifier-border, rgba(128,128,128,0.25));
+}
+
+/* 追加93：接受/拒绝悬停适配语义色 */
+.UNagent-approve-accept:hover {
+.UNagent-approve-accept:hover {
+  background: rgba(76, 175, 80, 0.14);
+  color: #2e7d32;
+}
+
+.UNagent-approve-reject:hover {
+  background: rgba(229, 57, 53, 0.12);
+  color: #c62828;
+}
+
+/* 引用等受文件状态限制的按钮：文件已删除/不存在时禁用以防失效引用 */
+.UNagent-icon-btn--disabled,
+.UNagent-icon-btn--disabled:hover,
+.UNagent-icon-btn--disabled:active {
+  opacity: 0.35;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
 }
 
 /* Settings: horizontal tab bar (scrollable on phones) + pane area */
@@ -3652,4 +4092,3 @@
 .UNagent-hermes-approval .UNagent-hermes-approval-close:hover {
   color: var(--text-normal);
 }
-
