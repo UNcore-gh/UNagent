@@ -3424,7 +3424,6 @@
 
 /* 追加93：接受/拒绝悬停适配语义色 */
 .UNagent-approve-accept:hover {
-.UNagent-approve-accept:hover {
   background: rgba(76, 175, 80, 0.14);
   color: #2e7d32;
 }

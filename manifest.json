@@ -1,7 +1,7 @@
 {
   "id": "unagent",
   "name": "UNagent",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "minAppVersion": "1.7.2",
   "description": "Mobile-first AI assistant: lightweight on phones/tablets, heavy-duty task capabilities on desktop via hermes ACP.",
   "author": "UNcore",
