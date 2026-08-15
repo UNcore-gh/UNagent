@@ -1,0 +1,44 @@
+# Attest release assets with GitHub Artifact Attestations.
+#
+# Why: lets users cryptographically verify that the published
+# main.js / styles.css / manifest.json really came from this repository
+# (UNcore-gh/UNagent) and were not tampered with:
+#     gh attestation verify main.js -o UNcore-gh
+#
+# Triggers:
+#   - push of any tag (the normal release path: every new version gets
+#     attested automatically)
+#   - manual workflow_dispatch (e.g. to backfill attestations for an
+#     already-published release)
+#
+# Assets are built locally and committed, so this workflow simply
+# checks out the tagged files and attests their digests — no rebuild
+# needed. Obsidian's marketplace review checks for these attestations
+# on release assets.
+name: Attest Release Assets
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release files
+        uses: actions/checkout@v4
+
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            styles.css
+            manifest.json
