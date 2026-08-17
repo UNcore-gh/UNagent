@@ -3503,6 +3503,48 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* 内容区：限宽居中（宽屏不再拉满整行）、与导航拉开间距 */
+.UNagent-settings-pane {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 10px 4px 24px;
+}
+
+/* 页首简介：与导航拉开、收窄行宽更易读 */
+.UNagent-settings-pane > p.setting-item-description:first-child {
+  margin: 2px 0 14px;
+  max-width: 640px;
+}
+
+/* 区块标题节奏：setHeading 自带顶部分隔线，统一加大上方留白，
+   并让分隔线更轻，避免密集横线带来的「表格感」。 */
+.UNagent-settings-pane .setting-item-heading {
+  margin-top: 26px;
+  padding-top: 14px;
+  border-top-color: color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+}
+
+.UNagent-settings-pane .setting-item-heading:first-of-type {
+  margin-top: 8px;
+}
+
+/* 条目分隔线降噪：默认 border-bottom 淡一档，靠标题节奏分区 */
+.UNagent-settings-pane .setting-item {
+  border-bottom-color: color-mix(in srgb, var(--background-modifier-border) 55%, transparent);
+}
+
+/* 轻量行动行（← 返回 / ＋ 添加）：只含按钮，去掉分隔线与行高占位，
+   按钮靠左，不再占完整条目的视觉重量。 */
+.UNagent-settings-pane .UNagent-settings-actionrow {
+  padding: 2px 0 4px;
+  border-top: none;
+  border-bottom: none;
+}
+
+.UNagent-settings-pane .UNagent-settings-actionrow .setting-item-control {
+  justify-content: flex-start;
+}
+
 .UNagent-settings-tab {
   display: flex;
   align-items: center;
@@ -3512,6 +3554,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   font-family: inherit;
@@ -3520,15 +3563,17 @@
   white-space: nowrap;
   transition:
     color 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .UNagent-settings-tab:hover {
   color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
 .UNagent-settings-tab.is-active {
-  color: var(--text-normal);
+  color: var(--text-accent);
   border-bottom-color: var(--interactive-accent);
 }
 
@@ -3808,6 +3853,40 @@
   width: 1em;
   height: 1em;
   stroke-width: 2;
+}
+
+/* 设置页条目来源 / 状态标签 pill：跟在条目名称后，全部带悬停解释。
+   变体：默认＝官方强调色；-preset 预设；-neutral 中性信息（配套 / 常驻 /
+   懒载入 / 工具数）；-off 停用警示。随主题变量自适应。 */
+.UNagent-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+  color: var(--text-accent);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.UNagent-tag-neutral {
+  border-color: var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.UNagent-tag-off {
+  border-color: color-mix(in srgb, var(--text-error) 45%, transparent);
+  background: color-mix(in srgb, var(--text-error) 10%, transparent);
+  color: var(--text-error);
+  font-weight: 500;
 }
 
 /* ── 追加85: 引用原文独立窗（官方 Modal，ref chip 点击弹出）─────────────
