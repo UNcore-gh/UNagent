@@ -151,12 +151,11 @@
   flex-shrink: 0;
 }
 
-/* 追加㊱: Hermes 模式切换 pill——固定「Hermes」字样（不随模式换名），
-   高亮（is-active）= 当前对话在 Hermes 模式；点击切换。出现与否跟随
-   「启用 Hermes 集成」总开关（开启即常驻，不随 Hermes 窗口开关变化）。
-   放计量 chip 右侧（上下文计量自然左移）。基规则带容器类前缀提到
-   (0,2,0)，压过核心 `button:not(.clickable-icon)` (0,1,1) 的静止态重绘
-   ——补 box-shadow/outline:none 防残框。 */
+/* 审批模式切换 pill（/mode）：点击弹审批模式选择窗，
+   高亮（is-active）= 当前会话模式。放计量 chip 右侧（上下文计量自然
+   左移）。基规则带容器类前缀提到 (0,2,0)，压过核心
+   `button:not(.clickable-icon)` (0,1,1) 的静止态重绘——补
+   box-shadow/outline:none 防残框。 */
 .UNagent-chat-header .UNagent-chat-mode {
   background: transparent;
   border: 1px solid var(--background-modifier-border);
@@ -175,7 +174,7 @@
   background: var(--background-modifier-hover);
 }
 
-/* Hermes 模式激活态：实心强调色 */
+/* 审批模式激活态：实心强调色 */
 .UNagent-chat-header .UNagent-chat-mode.is-active {
   color: var(--text-on-accent);
   background: var(--interactive-accent);
@@ -185,59 +184,6 @@
 .UNagent-chat-header .UNagent-chat-mode:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-/* Hermes 连接状态灯（补刀·五十九）：pill 内嵌 8px 圆点。
-   红=未连接/失败、灰=连接中、绿=已就绪——三态颜色走主题变量（明暗主题
-   都适配）；is-active（hermes 对话）实心强调底上补白色内描边保可辨。 */
-.UNagent-chat-header .UNagent-hermes-status {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--text-faint);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
-  vertical-align: middle;
-}
-
-/* idle = 尚未连接：红（未联通即为红，确认联通后才变绿）——
-   半透明红与 failed 的实心红区分「未尝试」与「已失败」。 */
-.UNagent-chat-header .UNagent-hermes-status--idle {
-  background: var(--color-red, #e53935);
-  opacity: 0.55;
-}
-
-.UNagent-chat-header .UNagent-hermes-status--ready {
-  background: var(--color-green, #4caf50);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
-}
-
-.UNagent-chat-header .UNagent-hermes-status--failed {
-  background: var(--color-red, #e53935);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
-}
-
-.UNagent-chat-header .UNagent-chat-mode.is-active .UNagent-hermes-status {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-}
-
-/* 连接中轻微呼吸——进行时态感知（尊重系统减弱动效设置） */
-@media (prefers-reduced-motion: no-preference) {
-  .UNagent-chat-header .UNagent-hermes-status--connecting {
-    animation: UNagent-hermes-pulse 1.2s ease-in-out infinite;
-  }
-}
-
-@keyframes UNagent-hermes-pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 /* Config notice */
@@ -1219,16 +1165,24 @@
   transition: padding-bottom 0.15s ease-out;
 }
 
-/* Mobile main window: raise the input box above Obsidian's floating
-   toolbar (~44px). The toolbar sits at the bottom of the screen and
-   overlaps the composer in the main editor area. Adding ~66px (≈1.5×
-   the composer card height) of bottom padding lifts the input above it.
-   Touch devices only — desktop has no floating toolbar.
+/* Mobile main window: raise the input box above Obsidian's bottom mobile
+   navbar. The lift equals the LIVE measured navbar height (--ai-nav, set
+   by useKeyboardLift from .mobile-navbar — same measure-don't-guess
+   technique as --ai-kb for the keyboard). The navbar's border box already
+   includes its safe-area bottom padding (--navbar-bottom-offset), so
+   env(safe-area-inset-bottom) is NOT added on top.
+   Why measured instead of the old hardcoded 66px: Obsidian hides the
+   navbar entirely on iPad (`body.is-tablet .mobile-navbar { display:none }`
+   in app.css), so the constant left a dead blank strip below the composer
+   on every iPad; a real phone navbar is ~80px incl. safe area. Measured 0
+   on iPad → composer flush at the screen bottom.
+   Touch devices only — desktop has no navbar. The 66px fallback only
+   shows for the frames before the first JS sync on phones.
    When keyboard opens, the is-keyboard rules below override this
    (higher specificity) and set padding-bottom to 2px. */
 @media (hover: none) and (pointer: coarse) {
   .workspace-split.mod-root .UNagent-composer-wrap {
-    padding-bottom: calc(2px + env(safe-area-inset-bottom, 0px) + 66px);
+    padding-bottom: calc(2px + var(--ai-nav, 66px));
   }
 }
 
@@ -1333,7 +1287,9 @@
 .UNagent-composer {
   display: flex;
   flex-wrap: wrap; /* 追加52: the edit bar claims a full row, the rest wraps */
-  align-items: flex-end;
+  /* 用户报：发送/附件按钮与输入框不居中——flex-end 把按钮钉在底部，
+     输入框多行长高后错位更明显；改为垂直中心对齐。 */
+  align-items: center;
   gap: 6px;
   /* Slim card (追加⑰): the whole input area sits a touch lower. Tighter
      padding keeps the box short (补刀). Transparent now — the input blends
@@ -1381,7 +1337,10 @@
   font-size: 16px; /* >=16px prevents iOS from zooming on focus */
   line-height: 1.4;
   font-family: inherit;
-  color: inherit;
+  /* Pinned, not inherited: third-party dark themes have been seen to inject a
+     low-contrast color into the composer chain, taking the non-overlay input
+     text invisible. The overlay layer below pins the same variable. */
+  color: var(--text-normal);
 }
 
 /* Obsidian ships generic `textarea:hover` / `:focus` / `:focus-visible`
@@ -1444,7 +1403,11 @@
   line-height: 1.4;
   font-family: inherit;
   white-space: pre-wrap;
-  color: inherit;
+  /* Pinned like the textarea above: the overlay layer must never depend on a
+     color inheritance chain third-party dark themes can poison — in overlay
+     mode the textarea text is transparent, so this layer IS the visible text
+     (用户报: 深色模式下 // 调用技能时输入框文字不可见). */
+  color: var(--text-normal);
 }
 /* Chip skeleton shared by the command pill AND the mention chips (追加㊱,
    用户指示: 两者除颜色外渲染一致; 追加㊲: 去掉花哨——不要描边环、不要饱和
@@ -1480,6 +1443,11 @@
    middle 与文字中线对齐（见下）。
    追加90: 布局用 inline-block（CSS2 baseline 语义确定），不用 inline-flex
    ——flex 容器的基线实现因浏览器而异，实测在正文/气泡两侧都有偏移。 */
+/* 追加72（内置浏览器）：网页引用 chip 是 span（无可解析的库内笔记），
+   没有原生 <a> 的手型光标——可点击时补上，避免「能点但看起来不能点」。 */
+.UNagent-markdown .UNagent-output-mention.UNagent-chip-clickable {
+  cursor: pointer;
+}
 .UNagent-markdown .UNagent-output-mention {
   /* 追加97（用户报「渲染块高了一圈、和文字不对齐」）：对齐策略从
      baseline 改为 middle——胶囊与正文行垂直居中，不再贴着基线导致
@@ -1550,7 +1518,7 @@
 }
 /* 追加87: 用户气泡内 chip 与正文垂直居中（追加97：用户指示中心对齐）——双前缀把特异性提到
    (0,3,0)，压住任何主题/核心对 accent 表面上 a.internal-link 注入的
-   vertical-align（用户报：hermes 模式发送后气泡里引用块与文本错位成
+   vertical-align（用户报：气泡里引用块与文本错位成
    居中）。基线规则本身在 .UNagent-markdown 级已存在，这里是气泡
    语境下的钉死副本。 */
 .UNagent-message--user .UNagent-markdown .UNagent-output-mention,
@@ -1624,11 +1592,13 @@
   }
 }
 
-/* Round action buttons inside the card; send is the white anchor. */
+/* Round action buttons inside the card; send is the white anchor.
+   用户报：发送/附件两键在发送框里占位偏大——从 34px 收到 28px（触屏
+   媒体查询另见下方 32px）。 */
 .UNagent-composer .UNagent-composer-btn {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
   box-shadow: none; /* core `button` (0,1,1) repaints at rest — (0,2,0) wins */
@@ -1686,6 +1656,17 @@
 
 .UNagent-composer .UNagent-composer-attach:active {
   transform: scale(0.88);
+}
+
+/* 选中文字时附件键变引用“＋”（用户指示：加号占附件位）——用 accent
+   色提示它是一个动作键，与平时安静的回形针区分。 */
+.UNagent-composer .UNagent-composer-attach--ref {
+  color: var(--text-accent);
+}
+
+.UNagent-composer .UNagent-composer-attach--ref:hover {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--text-accent) 12%, transparent);
 }
 
 /* Hidden system file chooser (paperclip → 从系统添加). */
@@ -1818,8 +1799,10 @@
   flex-direction: column;
   align-items: center;
   /* The dash cluster gathers around ≈ half the track height instead of
-     stretching top-to-bottom. `safe` degrades to flex-start (never clips)
-     if the stack ever grows taller than the track in a very long chat. */
+     stretching top-to-bottom. `safe` degrades to flex-start if the stack
+     ever grows taller than the track —— 真正的超高处理由内部 dash 簇
+     自己滚动承担（见 cluster 规则），nodes 本身绝不能设 overflow：
+     悬停面板是它的绝对定位子元素，裁不得。 */
   justify-content: safe center;
   pointer-events: auto;
   /* The rail owns touch gestures (press-and-scrub, 追加⑱ 补刀): never let
@@ -1828,12 +1811,23 @@
 }
 
 /* 追加78: the dashes + the two step arrows live in one centered column;
-   the gap moved here from the track when the cluster wrapper came in. */
+   the gap moved here from the track when the cluster wrapper came in.
+   用户报修正：问题数超出轨道高度时首尾短横原本被裁切——改为簇内
+   部滚动（滚动条隐藏，它本就是消息列表滚动条的替身），组件侧把当
+   前问题的短横时刻自动滚进视野（见 ConversationNav）。 */
 .UNagent-nav-nodes .UNagent-nav-cluster {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.UNagent-nav-nodes .UNagent-nav-cluster::-webkit-scrollbar {
+  display: none;
 }
 
 /* One node = one user question. Nodes keep a comfortable tap/hover height;
@@ -2093,11 +2087,9 @@
    ALWAYS shown (追加⑱ 补刀: no auto-collapse) as a dot-on-connector list;
    each row is a title, and the verbose args / image output stay collapsed
    until that title is clicked. Dot colors carry the state: running = green
-   pulse, done = green, error = red, retrying = red pulse. Borderless + a
-   thin connector with gaps (追加⑱ 补刀): it reads as a plain list, not a box. */
-.UNagent-chain {
-  background: var(--ai-surface);
-}
+   pulse, done = green, error = red, retrying = red pulse. 用户报修正：
+   AI 回答界面显得杂乱——去掉卡片的白底与边框（含 head/steps 之间的
+   分隔线），链路直接融入页面；connector 仍是压在节点底下的一条连续线。 */
 
 .UNagent-chain-head {
   display: flex;
@@ -2133,7 +2125,6 @@
 
 .UNagent-chain-steps {
   padding: 0 12px 6px 14px;
-  border-top: 1px solid var(--background-modifier-border);
 }
 
 .UNagent-chain-step {
@@ -2145,7 +2136,7 @@
 /* Node + title share one row, centered — the dot always sits exactly on the
    title line, even when the expanded detail below grows the step. The row
    height is FIXED so the dot's vertical position is deterministic, which
-   lets the connector use symmetric gaps above and below (追加⑱ 补刀). */
+   lets the connector span exactly node-center to node-center (追加⑱ 补刀). */
 .UNagent-chain-step-row {
   display: flex;
   align-items: center;
@@ -2154,17 +2145,31 @@
 }
 
 /* Vertical connector between the node dots — a real DOM element (追加⑱ 补刀),
-   near-black and THIN (1px). With the row height fixed at 24px the dot spans
-   13–19px from the step top, so a 3px gap above (top 22) and a matching 3px
-   gap below (next dot starts 13px into the next step; bottom −10 ends 3px
-   short) stay symmetric. */
+   near-black and THIN (1px). With the row height fixed at 24px and the step
+   padding at 2px the dot's center sits 14px below the step top, so the line
+   spans node-center to node-center (top 14 / bottom −14): one CONTINUOUS
+   segment between adjacent nodes, no gaps. It stays in a layer BELOW the
+   row content — positioned siblings paint over non-positioned ones by
+   default, so the row/thinking/detail are lifted (z-index: 1) to keep the
+   line under the dots, never over them (用户报). */
 .UNagent-chain-connector {
   position: absolute;
+  z-index: 0;
   left: 2.5px;
-  top: 22px;
-  bottom: -10px;
+  top: 14px;
+  bottom: -14px;
   width: 1px;
   background: var(--text-normal);
+}
+
+/* Stacking lift for everything that follows the connector inside a step —
+   the 1px line must read as passing UNDER the node dots and any expanded
+   content, not on top of them. */
+.UNagent-chain-step .UNagent-chain-step-row,
+.UNagent-chain-step .UNagent-chain-thinking,
+.UNagent-chain-step .UNagent-chain-step-detail {
+  position: relative;
+  z-index: 1;
 }
 
 /* The node dot (追加⑱ 补刀): dark INK BLUE on success (the resting state),
@@ -2357,15 +2362,43 @@
   }
 }
 
-/* Task list (清单) — the TodoWrite-style live checklist the agent maintains
-   for complex multi-step tasks. Same borderless card language as the thought
-   chain: surface background, head row with icon + progress meta, then one
-   row per item. Item states: pending = hollow circle + muted text,
-   in_progress = spinning loader + accent text, completed = check + struck
-   faint text. Pure static markup — no interactive states to defend. */
-.UNagent-todo {
-  background: var(--ai-surface);
+/* ── in-flight status line ──────────────────────────────────────────
+   「准备中 / 正在读取引用笔记 / 思考中…」——回答还没有任何块、或两次
+   LLM 调用之间等首 token 时的活指示：脉冲圆点 + 文字。替代原来的静态
+   「…」，等待期不再像卡住（用户报）。视觉上与思考链路运行态同族：
+   accent 色圆点复用 UNagent-pulse。 */
+.UNagent-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
 }
+
+.UNagent-status-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  animation: UNagent-pulse 1.3s ease-in-out infinite;
+}
+
+.UNagent-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Task list (清单) — the TodoWrite-style live checklist the agent maintains
+   for complex multi-step tasks. Borderless and background-free, exactly
+   like the thought chain (用户报：同款白底降噪)——head row with icon +
+   progress meta, then one row per item. Item states: pending = hollow
+   circle + muted text, in_progress = spinning loader + accent text,
+   completed = check + struck faint text. Pure static markup — no
+   interactive states to defend. */
 
 .UNagent-todo-head {
   display: flex;
@@ -2400,7 +2433,6 @@
 
 .UNagent-todo-items {
   padding: 4px 12px 8px 14px;
-  border-top: 1px solid var(--background-modifier-border);
 }
 
 .UNagent-todo-item {
@@ -2631,10 +2663,11 @@
     display: none;
   }
 
-  /* Bigger touch targets where there is no hover feedback. */
+  /* Bigger touch targets where there is no hover feedback (still smaller
+     than before the 28px desktop shrink — 用户报缩小指令同样适用触屏). */
   .UNagent-composer-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -2907,7 +2940,7 @@
   line-height: 1.35;
 }
 
-/* 元数据行（消息数 / 上次对话时间 / 子对话 / Hermes 等）：比普通
+/* 元数据行（消息数 / 上次对话时间 / 子对话等）：比普通
    --font-ui-smaller 再小一号、再浅一档，不换行、超长省略。 */
 .UNagent-chats .UNagent-mention-sub {
   min-width: 0;
@@ -3230,7 +3263,11 @@
   white-space: nowrap;
 }
 
-/* 中间预览框：文本固定高度可滚动；图片完整显示 */
+/* 中间预览框：文本固定高度可滚动；图片完整显示。
+   滚动「点按激活」（用户报）：预览内容默认 overflow hidden——不是滚动
+   容器，页面上直接滑动经过卡片时照常滚整页，不被内层拦截；点中卡片
+   （is-scroll-armed，FileCard 内 onClick 置位，点外部解除）后才恢复
+   overflow-y: auto，此时的滑动才是预览内容滚动。 */
 .UNagent-filecard-preview-wrap {
   position: relative;
   border: 1px solid var(--background-modifier-border);
@@ -3247,9 +3284,13 @@
 
 .UNagent-filecard-preview {
   height: 150px;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 6px 8px;
   overscroll-behavior: contain;
+}
+
+.UNagent-filecard-preview-wrap.is-scroll-armed .UNagent-filecard-preview {
+  overflow-y: auto;
 }
 
 .UNagent-filecard-preview--md {
@@ -3333,19 +3374,22 @@
 .UNagent-diff-line--del { background: rgba(229, 57, 53, 0.11); }
 .UNagent-diff-line--del .UNagent-diff-gutter { color: #e53935; opacity: 1; }
 
-/* 审批结果状态条 */
+/* 审批结果状态文案（用户报修正）：不再悬浮在预览框右下角，而是落在
+   底部按钮行右侧——原 ✓/✗ 按钮的位置，以文字替代按钮（同 approve
+   组的 margin-left:auto 推右 + 分隔线）。 */
 .UNagent-decision {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 3px 8px;
+  padding-left: 10px;
+  border-left: 1px solid var(--background-modifier-border, rgba(128,128,128,0.25));
   border-radius: var(--radius-m, 8px);
   font-size: var(--font-ui-smaller);
   background: var(--background-modifier-hover);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .UNagent-decision svg {
@@ -3802,10 +3846,10 @@
   align-self: flex-start;
 }
 
-/* 补刀·五十六: hermes ACP 权限审批面板 —— 输入框上方卡片：工具标题 +
+/* 权限确认面板（ConfirmApprovalPanel）—— 输入框上方卡片：工具标题 +
    命令文本/编辑 diff 预览 + 选项按钮组。按钮基规则一律 (0,2,0) +
    box-shadow/outline: none（核心 button 样式覆盖铁律），触屏 ≥32px。 */
-.UNagent-hermes-approval {
+.UNagent-confirm-approval {
   margin: 0 10px 8px;
   padding: 8px 12px 10px;
   border-radius: 10px;
@@ -3817,7 +3861,7 @@
   overscroll-behavior: contain;
 }
 
-.UNagent-hermes-approval-header {
+.UNagent-confirm-approval-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3825,7 +3869,7 @@
   margin-bottom: 6px;
 }
 
-.UNagent-hermes-approval-title {
+.UNagent-confirm-approval-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3836,7 +3880,7 @@
   margin-right: auto;
 }
 
-.UNagent-hermes-approval-kind {
+.UNagent-confirm-approval-kind {
   padding: 0 7px;
   border-radius: 999px;
   border: 1px solid var(--background-modifier-border);
@@ -3846,13 +3890,13 @@
   color: var(--text-muted);
 }
 
-.UNagent-hermes-approval-kind[data-kind='execute'],
-.UNagent-hermes-approval-kind[data-kind='delete'] {
+.UNagent-confirm-approval-kind[data-kind='execute'],
+.UNagent-confirm-approval-kind[data-kind='delete'] {
   color: var(--text-error);
   border-color: var(--text-error);
 }
 
-.UNagent-hermes-approval-tool {
+.UNagent-confirm-approval-tool {
   font-size: var(--font-ui-small);
   font-weight: 600;
   color: var(--text-normal);
@@ -3860,7 +3904,7 @@
   word-break: break-word;
 }
 
-.UNagent-hermes-approval-text {
+.UNagent-confirm-approval-text {
   margin: 4px 0;
   padding: 6px 8px;
   border-radius: 6px;
@@ -3874,11 +3918,11 @@
 }
 
 /* M2-T7：edit 类审批的 unified diff（等宽、增绿删红、折叠 + 内部滚动）。
-   全部作用域在 .UNagent-hermes-approval 容器类下，按钮基规则带容器
+   全部作用域在 .UNagent-confirm-approval 容器类下，按钮基规则带容器
    前缀（特异度 ≥0,2,0）+ box-shadow/outline: none，防核心
    button:not(.clickable-icon)（0,1,1）盖过。着色走 --text-success /
    --text-error 与 --background-primary 的 color-mix，随主题自适应。 */
-.UNagent-hermes-approval-diff-file {
+.UNagent-confirm-approval-diff-file {
   margin: 6px 0;
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -3886,7 +3930,7 @@
   overflow: hidden;
 }
 
-.UNagent-hermes-approval-diff-head {
+.UNagent-confirm-approval-diff-head {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3895,7 +3939,7 @@
   background: var(--background-secondary);
 }
 
-.UNagent-hermes-approval-diff-path {
+.UNagent-confirm-approval-diff-path {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -3912,7 +3956,7 @@
   text-align: left;
 }
 
-.UNagent-hermes-approval-diff-stats {
+.UNagent-confirm-approval-diff-stats {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3921,15 +3965,15 @@
   font-size: 11px;
 }
 
-.UNagent-hermes-approval-diff-add {
+.UNagent-confirm-approval-diff-add {
   color: var(--text-success);
 }
 
-.UNagent-hermes-approval-diff-del {
+.UNagent-confirm-approval-diff-del {
   color: var(--text-error);
 }
 
-.UNagent-hermes-approval-diff-badge {
+.UNagent-confirm-approval-diff-badge {
   padding: 0 6px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--text-success) 45%, transparent);
@@ -3940,7 +3984,7 @@
   line-height: 16px;
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-diff-toggle {
+.UNagent-confirm-approval .UNagent-confirm-approval-diff-toggle {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -3956,12 +4000,12 @@
   outline: none;
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-diff-toggle:hover {
+.UNagent-confirm-approval .UNagent-confirm-approval-diff-toggle:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.UNagent-hermes-approval-diff-body {
+.UNagent-confirm-approval-diff-body {
   max-height: 320px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -3972,26 +4016,26 @@
 }
 
 /* 折叠态只露预览行——收起滚动，由「展开」按钮接管。 */
-.UNagent-hermes-approval-diff-body[data-collapsed='true'] {
+.UNagent-confirm-approval-diff-body[data-collapsed='true'] {
   max-height: none;
   overflow: hidden;
 }
 
-.UNagent-hermes-approval-diff-line {
+.UNagent-confirm-approval-diff-line {
   display: flex;
   align-items: stretch;
   white-space: pre;
 }
 
-.UNagent-hermes-approval-diff-line[data-diff-type='add'] {
+.UNagent-confirm-approval-diff-line[data-diff-type='add'] {
   background: color-mix(in srgb, var(--text-success) 12%, transparent);
 }
 
-.UNagent-hermes-approval-diff-line[data-diff-type='del'] {
+.UNagent-confirm-approval-diff-line[data-diff-type='del'] {
   background: color-mix(in srgb, var(--text-error) 10%, transparent);
 }
 
-.UNagent-hermes-approval-diff-sign {
+.UNagent-confirm-approval-diff-sign {
   flex: 0 0 auto;
   width: 20px;
   padding-left: 6px;
@@ -4000,17 +4044,17 @@
   color: var(--text-faint);
 }
 
-.UNagent-hermes-approval-diff-line[data-diff-type='add']
-  .UNagent-hermes-approval-diff-sign {
+.UNagent-confirm-approval-diff-line[data-diff-type='add']
+  .UNagent-confirm-approval-diff-sign {
   color: var(--text-success);
 }
 
-.UNagent-hermes-approval-diff-line[data-diff-type='del']
-  .UNagent-hermes-approval-diff-sign {
+.UNagent-confirm-approval-diff-line[data-diff-type='del']
+  .UNagent-confirm-approval-diff-sign {
   color: var(--text-error);
 }
 
-.UNagent-hermes-approval-diff-text {
+.UNagent-confirm-approval-diff-text {
   flex: 1 1 auto;
   min-width: 0;
   padding-right: 8px;
@@ -4019,12 +4063,12 @@
   color: var(--text-normal);
 }
 
-.UNagent-hermes-approval-diff-line[data-diff-type='ctx']
-  .UNagent-hermes-approval-diff-text {
+.UNagent-confirm-approval-diff-line[data-diff-type='ctx']
+  .UNagent-confirm-approval-diff-text {
   color: var(--text-muted);
 }
 
-.UNagent-hermes-approval-diff-note {
+.UNagent-confirm-approval-diff-note {
   padding: 3px 8px;
   font-size: 11px;
   color: var(--text-faint);
@@ -4033,7 +4077,7 @@
 
 /* M2-T8 收口：actions 并入 header 行（标题右侧右对齐），不再独占底部一行。
    按钮高度 24px 与 header 行（font-ui-smaller 标题 + 徽章）等高适配。 */
-.UNagent-hermes-approval-actions {
+.UNagent-confirm-approval-actions {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -4044,9 +4088,9 @@
 /* 追加92: Yes / No / × 三按钮视觉统一——同高 24px、同圆角 8px、同边框/
    背景/hover 骨架，语义仅靠颜色区分（allow=accent、deny=error、
    close=muted），不再各有各的边框/背景形态。 */
-.UNagent-hermes-approval .UNagent-hermes-approval-option,
-.UNagent-hermes-approval .UNagent-hermes-approval-deny,
-.UNagent-hermes-approval .UNagent-hermes-approval-close {
+.UNagent-confirm-approval .UNagent-confirm-approval-option,
+.UNagent-confirm-approval .UNagent-confirm-approval-deny,
+.UNagent-confirm-approval .UNagent-confirm-approval-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4061,33 +4105,33 @@
   outline: none;
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-option:hover,
-.UNagent-hermes-approval .UNagent-hermes-approval-deny:hover,
-.UNagent-hermes-approval .UNagent-hermes-approval-close:hover {
+.UNagent-confirm-approval .UNagent-confirm-approval-option:hover,
+.UNagent-confirm-approval .UNagent-confirm-approval-deny:hover,
+.UNagent-confirm-approval .UNagent-confirm-approval-close:hover {
   background: var(--background-modifier-hover);
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-option {
+.UNagent-confirm-approval .UNagent-confirm-approval-option {
   padding: 2px 10px;
 }
 
-.UNagent-hermes-approval
-  .UNagent-hermes-approval-option[data-option-kind='allow'] {
+.UNagent-confirm-approval
+  .UNagent-confirm-approval-option[data-option-kind='allow'] {
   border-color: var(--interactive-accent);
   color: var(--text-accent);
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-deny {
+.UNagent-confirm-approval .UNagent-confirm-approval-deny {
   padding: 2px 10px;
   color: var(--text-error);
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-close {
+.UNagent-confirm-approval .UNagent-confirm-approval-close {
   width: 24px;
   padding: 0;
   color: var(--text-muted);
 }
 
-.UNagent-hermes-approval .UNagent-hermes-approval-close:hover {
+.UNagent-confirm-approval .UNagent-confirm-approval-close:hover {
   color: var(--text-normal);
 }
