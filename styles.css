@@ -1165,12 +1165,15 @@
   transition: padding-bottom 0.15s ease-out;
 }
 
-/* Mobile main window: raise the input box above Obsidian's bottom mobile
-   navbar. The lift equals the LIVE measured navbar height (--ai-nav, set
-   by useKeyboardLift from .mobile-navbar — same measure-don't-guess
-   technique as --ai-kb for the keyboard). The navbar's border box already
-   includes its safe-area bottom padding (--navbar-bottom-offset), so
-   env(safe-area-inset-bottom) is NOT added on top.
+/* Mobile main window AND mobile side drawer: raise the input box above
+   Obsidian's bottom mobile navbar. The lift equals the LIVE measured navbar
+   height (--ai-nav, set by useKeyboardLift from .mobile-navbar — same
+   measure-don't-guess technique as --ai-kb for the keyboard). The navbar's
+   border box already includes its safe-area bottom padding
+   (--navbar-bottom-offset), so env(safe-area-inset-bottom) is NOT added on
+   top. The side drawer needs the same lift: it otherwise sits flush at the
+   window bottom and the navbar's translucent surface washes over the
+   composer on phones.
    Why measured instead of the old hardcoded 66px: Obsidian hides the
    navbar entirely on iPad (`body.is-tablet .mobile-navbar { display:none }`
    in app.css), so the constant left a dead blank strip below the composer
@@ -1179,9 +1182,9 @@
    Touch devices only — desktop has no navbar. The 66px fallback only
    shows for the frames before the first JS sync on phones.
    When keyboard opens, the is-keyboard rules below override this
-   (higher specificity) and set padding-bottom to 2px. */
+   (same specificity, declared later) and set padding-bottom to 2px. */
 @media (hover: none) and (pointer: coarse) {
-  .workspace-split.mod-root .UNagent-composer-wrap {
+  .UNagent-composer-wrap {
     padding-bottom: calc(2px + var(--ai-nav, 66px));
   }
 }
@@ -1225,6 +1228,41 @@
    padding is zeroed to 2px when the keyboard opens, so the input sits
    flush at the keyboard top — not floating 66px above it. */
 .workspace-split.mod-root .UNagent-chat.is-keyboard .UNagent-composer-wrap {
+  padding-bottom: 2px;
+}
+
+/* Mobile side drawer: Obsidian paints a fixed 48px gradient band just above
+   the drawer bottom (`.is-mobile.is-floating-nav .workspace-drawer
+   .workspace-leaf-content:after` in app.css). On iPad the mobile navbar is
+   hidden so --ai-nav=0 and that band washes over the composer.
+
+   The user first cut this lift in half (52px → 26px) and then asked to go
+   further — iPad down ~half an input card, phone down ~0.6 of one. A plain
+   low lift would land the textarea INSIDE the band, so two compensations are
+   applied at the same time: the wrap is raised above the band with z-index,
+   and the input card paints the drawer's own background so the band can no
+   longer wash it out. The band then only shows in the small gap below the
+   card, which reads as a natural fade against the drawer surface. */
+body.is-mobile .workspace-drawer .UNagent-composer-wrap {
+  position: relative;
+  z-index: 1;
+  /* Input card measures ~38.4px, so half ≈ 19px, 0.6 ≈ 23px.
+     iPad (--ai-nav=0): max(8px, 2+0-23) = 8px — down from 26px.
+     Phone (--ai-nav≈80): 2+80-23 = 59px — down from 82px.
+     The 8px floor keeps a sliver of room below the card. */
+  padding-bottom: max(8px, calc(2px + var(--ai-nav, 66px) - 23px));
+}
+
+/* Match the card to the drawer so the band underneath it is invisible,
+   while text/buttons stay fully legible (a transparent card would let the
+   two gradient layers fight). */
+body.is-mobile .workspace-drawer .UNagent-composer {
+  background: var(--mobile-sidebar-background, var(--background-primary));
+}
+
+/* Keyboard open inside the drawer: sit flush at the keyboard top. More
+   specific than the drawer fallback above, so it wins. */
+body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wrap {
   padding-bottom: 2px;
 }
 
@@ -1594,16 +1632,30 @@
 
 /* Round action buttons inside the card; send is the white anchor.
    用户报：发送/附件两键在发送框里占位偏大——从 34px 收到 28px（触屏
-   媒体查询另见下方 32px）。 */
+   媒体查询另见下方 32px）。iPad 上之所以变椭圆：官方
+   `.is-tablet button:not(.clickable-icon)`（特异性 (0,2,1) 压过本条) 把
+   padding 覆写成 `4px 20px`，在 box-sizing:border-box 下左右 20px 内边距
+   把 28px 宽的圆钮撑成 40px 宽扁椭圆；`padding:0 !important` 把它钉回
+   0，min/max + aspect-ratio 继续守住方形。 */
 .UNagent-composer .UNagent-composer-btn {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
+  /* Pin every box edge: Obsidian core/theme button rules can override the
+     width/height pair on iOS and turn the 50% radius into a squashed
+     ellipse. min/max clamps beat any author width/height, and the
+     aspect-ratio squares a button whose dimensions collapse to auto. */
+  min-width: 28px;
+  max-width: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  aspect-ratio: 1;
   border-radius: 50%;
   border: none;
   box-shadow: none; /* core `button` (0,1,1) repaints at rest — (0,2,0) wins */
   outline: none;
-  padding: 0;
+  padding: 0 !important; /* beware .is-tablet button:not(.clickable-icon) */
+  box-sizing: border-box;
   cursor: pointer;
   font-size: 16px;
   display: flex;
@@ -2665,9 +2717,13 @@
 
   /* Bigger touch targets where there is no hover feedback (still smaller
      than before the 28px desktop shrink — 用户报缩小指令同样适用触屏). */
-  .UNagent-composer-btn {
+  .UNagent-composer .UNagent-composer-btn {
     width: 32px;
     height: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
   }
 }
 
@@ -3586,6 +3642,74 @@
   width: 15px;
   height: 15px;
   stroke-width: 2;
+}
+
+/* 通用页底部「反馈渠道」——QQ 频道卡片 + 邮箱 / B站链接行。 */
+.UNagent-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.UNagent-feedback-item,
+.UNagent-feedback-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.UNagent-feedback-item {
+  align-items: flex-start;
+}
+
+.UNagent-feedback-qr {
+  flex-shrink: 0;
+  width: 108px;
+  height: 108px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.UNagent-feedback-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.UNagent-feedback-title {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.UNagent-feedback-desc,
+.UNagent-feedback-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.UNagent-feedback-row {
+  justify-content: space-between;
+}
+
+.UNagent-feedback-link {
+  color: var(--text-accent);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .UNagent-feedback-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 
 /* 追加㉜：「模型」页两大板块（默认模型 / 配置厂商）之间再拉开一点，
