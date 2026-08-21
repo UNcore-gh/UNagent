@@ -1,10 +1,10 @@
 # UNagent
 
-**给 Obsidian 用户的移动优先 AI 助手——手机平板上轻量自足，桌面上经 hermes ACP 拥有重度任务能力。**
+**给 Obsidian 用户的移动优先 AI 助手——手机平板上轻量自足，桌面上同样完整可用。**
 
-> **English:** UNagent is a mobile-first AI assistant plugin for Obsidian — lightweight and self-contained on phones and tablets, and able to take on heavy-duty tasks on desktop through the hermes ACP integration. It relies on in-plugin JavaScript + remote HTTP only (native `fetch` with hand-written SSE), has no LLM SDK dependencies, and runs no local processes on mobile.
+> **English:** UNagent is a mobile-first AI assistant plugin for Obsidian — lightweight and self-contained on phones and tablets, and equally complete on desktop. It relies on in-plugin JavaScript + remote HTTP only (native `fetch` with hand-written SSE), has no LLM SDK dependencies, and runs no local processes on mobile.
 
-插件 id 是 `unagent`、显示名是「UNagent」，作者 UNcore。核心是「纯插件内 JS + 远程 HTTP」：不依赖任何 LLM SDK（原生 `fetch` + 手写 SSE），移动端零本地进程；桌面端在此之上多一条 hermes ACP 的重度通道，仅此一条。
+插件 id 是 `unagent`、显示名是「UNagent」，作者 UNcore。核心是「纯插件内 JS + 远程 HTTP」：不依赖任何 LLM SDK（原生 `fetch` + 手写 SSE），移动端零本地进程；桌面端在此之上只多一条本地命令执行（`run_command`，永远强制确认）。
 
 ---
 
@@ -37,53 +37,40 @@
 
 直接说需求就行，例如「搜索关于读书的笔记并总结一下」「给《项目计划》加上 #work 标签」。AI 会流式回答、按需调用工具读写你的笔记；破坏性操作会弹窗确认，改错了点顶部「撤销」。
 
-到这里插件已完整可用——不装 hermes、不配 MCP，轻层功能一样不缺。
+到这里插件已完整可用——不配 MCP，功能一样不缺。
 
 ---
 
-## 能力分两层（功能不对称是设计，不是缺陷）
-
-### 轻层：移动 + 桌面，零 hermes 也完整可用
+## 能力清单（移动 + 桌面一致）
 
 | 能力 | 说明 |
 |---|---|
 | 流式对话 | 逐字输出、可随时停止、错误有友好提示可重试；多厂商多协议档案并存，`/model` 切换会话模型，`/think` 系列控制思考强度 |
-| 16 个工具 | AI 可读、搜、写你的笔记（清单见下）；破坏性操作弹窗确认，删除与编辑可撤销 |
+| 15 个工具（桌面 16） | AI 可读、搜、写你的笔记（清单见下，共 16 个）；破坏性操作弹窗确认，删除与编辑可撤销；桌面端另有本地命令执行（`run_command`，移动端不可见，故移动端为 15 个） |
 | 技能 (Skills) | 纯提示文本的 SKILL.md 指南，`//技能名` 调用或 AI 按需 `load_skill` 载入；绝不执行代码 |
 | 混合检索 | 关键词 + 元数据为主通道；语义检索可选（远程 embedding + 本地向量缓存，见下） |
 | 生图 | `generate_image` 文生图存入 vault，可插入笔记/设为封面 |
 | 记忆与进化 | agent.md / user.md / memory.md 三个可见文件，显式记忆 + 反思建议（见下） |
-| 文字引用 | 编辑器 / 画布 / 表格里选中文字按 Option+Z（Alt+Z，或命令面板「引用选中文字到 AI 输入框」），一键跳到 AI 输入框并自动带上「来源 + 选中文字」引用 |
+| 文字引用 | 编辑器 / 画布 / 表格 / 内置浏览器里选中文字按 Option+Z（Alt+Z，或命令面板「引用选中文字到 AI 输入框」），一键跳到 AI 输入框并自动带上「来源 + 选中文字」引用；网页选区带页面地址（选中处是链接时连带链接本身）；没有选中内容（或引用失败）时按下也会直接聚焦输入框，可当纯聚焦快捷键用 |
 | 对话管理 | 自动保存进 vault、重启恢复、多层分支（`/branch`）、任意轮回溯（`/rewind`）、`/compact` 压缩 |
 | MCP（最小形态） | 仅远程 streamableHttp + tools 面，见「边界」一节 |
-
-### 重层：仅桌面，可选增强，需本机安装 hermes
-
-hermes 是一个本机命令行 agent。装上之后 UNagent 经 ACP 协议把它接进对话：
-
-- **`/hermes <任务>`**：把复杂任务分派给本机 hermes 执行——过程可见（工具卡片、计划清单），结果回到对话历史，主 agent 可基于结果继续；
-- **engine: hermes 子代理**：在 subagent.md frontmatter 里写 `engine: hermes`，该代理的整个对话走 hermes 引擎；
-- **审批面板**：hermes 要执行命令或改文件时弹窗让你选（允许一次/本次会话/始终允许 · 拒绝）——这是本地 agent 动你机器的唯一交互面；
-- **会话恢复**：hermes 会话 id 随对话持久化，关闭重开、重启 Obsidian 都能接上（hermes 侧 state.db 存档）。
-
-没装 hermes = 这些入口缺席而非报错，轻层一切照旧。**移动端永远不渲染 Hermes 入口。**
 
 ### 工具清单（16 个）
 
 | 工具 | 作用 | 破坏性 |
 |---|---|---|
-| `search_notes` | 关键词 + 元数据（标签/文件夹/日期）检索 | 否 |
+| `search_notes` | 关键词 + 元数据（标签/文件夹）检索；只带文件夹过滤时即文件夹浏览（返回子文件夹） | 否 |
 | `semantic_search` | 语义检索（远程 embedding，本地只存向量缓存） | 否 |
 | `library_index` | 库目录（启发式摘要缓存） | 否 |
-| `list_notes` | 文件夹单层浏览 | 否 |
 | `read_note` | 读取笔记内容（含元数据，超长分段续读） | 否 |
-| `create_note` | 新建笔记（支持 frontmatter） | 否 |
+| `create_note` | 新建笔记（支持 frontmatter；也可建 .canvas/.excalidraw/.base） | 否 |
 | `edit_note` | 追加 / 替换章节 / 全文替换（匹配失败会报最相似片段） | 是（可确认） |
-| `update_frontmatter` | 增删改 frontmatter 字段 | 是（可确认） |
-| `add_tag` | 添加标签 | 是（可确认） |
+| `update_frontmatter` | 增删改 frontmatter 字段；数组字段可合并去重（加标签用它） | 是（可确认） |
 | `rename_or_move` | 改名/移动（自动更新引用） | 是（可确认） |
 | `delete_note` | 移入回收站——**永远强制确认**，可撤销 | 是（强制） |
+| `run_command` | 本地命令/脚本执行（**仅桌面**；库外计算专用，不碰库内文件）——**永远强制确认** | 是（强制） |
 | `generate_image` | 文生图并存入 vault | 否 |
+| `mcp_admin` | 远程 MCP 服务增/改/删（action=add/update/remove）；联网发现工具前需确认，删除强制确认，官方服务不可删 | 删除强制 |
 | `load_skill` | 按名载入某个技能的完整指南 | 否 |
 | `save_memory` | 写入 memory.md（长期记忆）/ user.md（用户画像） | 否 |
 | `todo_write` | 任务清单（长任务的进度可视化） | 否 |
@@ -127,7 +114,7 @@ hermes 是一个本机命令行 agent。装上之后 UNagent 经 ACP 协议把�
 ## 平台差异声明
 
 - **移动端（手机/平板）= 纯插件内 JS + 远程 HTTP**：零本地进程、零本地算力（embedding 也走远程），所有核心功能三端一致。
-- **桌面专属能力只有一条路径 = hermes 集成**（ACP 会话 + 任务分派），由设置总开关控制；除此之外桌面与移动没有任何功能差异，也不打算对齐——两层职责不同，对称是反模式。
+- **桌面专属能力只有一条**：`run_command` 本地命令/脚本执行（库外计算，永远强制确认，绝不用于库内文件）。移动端该入口缺席而非报错；除此之外桌面与移动没有任何功能差异。
 
 ---
 
@@ -141,8 +128,8 @@ npm run build    # tsc strict 类型检查 + esbuild 生产构建 → main.js / 
 npm test         # jest 全量
 ```
 
-产物体积受关注（main.js ≈ 470–570K 量级）；每次构建后 grep 产物确认无隐藏依赖泄漏（pglite / lexical / framer-motion / langchain 须全 0）。设计约束与历史决策见仓库根目录 `ROADMAP.md`（方向与边界）、`HANDOFF.md`（进度与坑）。
+产物体积受关注（main.js ≈ 600–700K 量级）；每次构建后 grep 产物确认无隐藏依赖泄漏（pglite / lexical / framer-motion / langchain 须全 0）。
 
 ## License
 
-MIT
+[Source Available License](LICENSE) — 商用需授权。
