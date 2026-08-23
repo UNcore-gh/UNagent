@@ -1412,6 +1412,18 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   color: var(--text-faint);
 }
 
+/* AI 提问挂起（追加 N++）：ask_user 面板等待回答时输入整体禁用——压暗
+   输入框并屏蔽 hover/focus 反馈，占位提示行换成「请先回答上方的问题」。
+   只降对比度，不改变卡片尺寸，避免面板出现时布局跳动。 */
+.UNagent-composer-inputbox--locked .UNagent-composer-input {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.UNagent-composer-inputbox--locked .UNagent-composer-hint {
+  opacity: 0.8;
+}
+
 /* Live in-input highlight (命令字变色 · 引用浅蓝): when a known /command or a
    mention reference is present, the textarea's own text goes transparent
    (caret stays visible) and the .UNagent-composer-cmd layer renders the
@@ -1843,62 +1855,66 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
    width to the view. */
 .UNagent-nav {
   position: absolute;
-  inset: 0;
+  /* 不用 inset 简写：旧 iPad WebKit（iOS ≤14）不认识它，整条声明被丢
+     弃后本容器塌成 0×0，短横全被 overflow:hidden 裁掉 —— 这就是 iPad
+     上浮动导航栏"凭空消失"的位置根因。四个方向显式写出。 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 5;
   pointer-events: none; /* only the nodes themselves are interactive */
 }
 
 .UNagent-nav-nodes {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  right: 2px;
+  /* 减法重做 + 平板定位修复：不再撑满整条轨道再靠 flex 居中（旧 WebKit
+     对 inset/safe-center 的支持差异曾让整条栏错位 / 消失），改为一个
+     自包含的紧凑小部件 —— 钉在右缘垂直正中，高度由内容决定。任何能
+     正常渲染 absolute+transform 的引擎都能把它放对位置。 */
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  max-height: 100%;
   width: 20px;
   padding: 10px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* The dash cluster gathers around ≈ half the track height instead of
-     stretching top-to-bottom. `safe` degrades to flex-start if the stack
-     ever grows taller than the track —— 真正的超高处理由内部 dash 簇
-     自己滚动承担（见 cluster 规则），nodes 本身绝不能设 overflow：
-     悬停面板是它的绝对定位子元素，裁不得。 */
-  justify-content: safe center;
   pointer-events: auto;
-  /* The rail owns touch gestures (press-and-scrub, 追加⑱ 补刀): never let
-     the browser turn a rail drag into a page/message scroll. */
-  touch-action: none;
 }
 
 /* 追加78: the dashes + the two step arrows live in one centered column;
    the gap moved here from the track when the cluster wrapper came in.
    用户报修正：问题数超出轨道高度时首尾短横原本被裁切——改为簇内
    部滚动（滚动条隐藏，它本就是消息列表滚动条的替身），组件侧把当
-   前问题的短横时刻自动滚进视野（见 ConversationNav）。 */
+   前问题的短横时刻自动滚进视野（见 ConversationNav）。
+   平板再修：高度上限不用 min(60vh,…) 这类视口猜测（分屏 / 浮窗下和
+   父容器约束脱节，簇被压扁后上下箭头会被滚出视野）——nodes 是被
+   max-height:100% 钉住的确定高度，簇作为 flex 项 min-height:0 自动
+   收缩并内部滚动，视口多高都成立。 */
 .UNagent-nav-nodes .UNagent-nav-cluster {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  max-height: 100%;
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+  /* 手势已砍（短横不再响应拖拽），放行簇自身的原生纵向滚动。 */
+  touch-action: pan-y;
 }
 
 .UNagent-nav-nodes .UNagent-nav-cluster::-webkit-scrollbar {
   display: none;
 }
 
-/* One node = one user question. Nodes keep a comfortable tap/hover height;
-   flex-shrink + a tiny min-height let a very long chat compress the
-   cluster instead of overflowing the track.
-   Specificity note (追加⑰ 补刀): core's `button:not(.clickable-icon)` is
-   (0,1,1) and paints `background-color: var(--interactive-normal)` +
-   `box-shadow: var(--input-shadow)` at REST — a single-class base rule
-   (0,1,0) loses to it, which is exactly the "pale frame around the dash"
-   the user kept seeing (gone on hover, because the (0,2,0) state pins win).
-   The BASE rule must therefore also be (0,2,0): prefix the container. */
+/* One node = one user question —— 减法重做后是纯位置指示器（span，不再
+   是 button）：不响应点击 / 拖拽，只靠 scrollspy 点亮当前问题。保留
+   (0,2,0) 前缀与透明底以防主题规则越权绘制。 */
 .UNagent-nav-nodes .UNagent-nav-node {
   position: relative;
   display: flex;
@@ -1913,15 +1929,11 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   border: none;
   box-shadow: none;
   outline: none;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
 }
 
-/* Larger cursor/touch detection (追加⑱ 补刀): the dash is 9px — far too
-   small to aim at. A transparent ::before extends the node's interactive
-   box (≈38px wide × 31px tall) without moving the dash or widening the
-   cluster; generated content is hit-tested as part of the button. */
+/* Transparent ::before widens the hold/hover target (≈38px × 31px) without
+   moving the dash or widening the cluster —— 触屏按住呼出面板、桌面悬停
+   都吃这个更大的命中区。 */
 .UNagent-nav-nodes .UNagent-nav-node::before {
   content: '';
   position: absolute;
@@ -1932,8 +1944,8 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
 }
 
 /* Obsidian core paints generic button states (hover gets a soft gray
-   background) — that read as a box around each dash. Pin every interactive
-   state to invisible so only the bare dash is ever visible. */
+   background) — pin every state to invisible so only the bare dash is
+   ever visible. */
 .UNagent-nav-node:hover,
 .UNagent-nav-node:focus,
 .UNagent-nav-node:focus-visible,
@@ -1945,8 +1957,8 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
 }
 
 /* Plain ink dashes (短横) — text-normal is near-black in light themes,
-   near-white in dark, i.e. the reading color either way. Hovering and the
-   active question stretch the dash slightly instead of scaling a dot. */
+   near-white in dark, i.e. the reading color either way. The active
+   question stretches the dash slightly instead of scaling a dot. */
 .UNagent-nav-dash {
   width: 9px;
   height: 2px;
@@ -1957,11 +1969,6 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
     width 0.12s ease,
     opacity 0.12s ease,
     background-color 0.12s ease;
-}
-
-.UNagent-nav-node:hover .UNagent-nav-dash {
-  opacity: 1;
-  width: 13px;
 }
 
 /* The question currently being read: accent + a little longer. */
@@ -1992,7 +1999,9 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   box-shadow: none;
   outline: none;
   color: var(--text-normal);
-  opacity: 0.45;
+  /* 用户报：桌面 / 平板上箭头"看不见"。0.45 太隐身，提到 0.75 常显，
+     悬停再拉满。 */
+  opacity: 0.75;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
@@ -2016,8 +2025,31 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   opacity: 1;
 }
 
+/* 箭头本体 —— 实心边框三角（轴对齐、填充面、零 transform）。
+   根因回顾：前两版（1.1px SVG 描边 / 旋转 2px 边框）都栽在「细斜线
+   描边 + 分数像素相位」上——iPad 2x 光栅化把相位不利的斜线平均到
+   不可见（一个整只消失、一个只剩半边），iPhone 3x 相位不同才侥幸
+   正常；短横（轴对齐实心直线）从未出过事。三角用 border 填充面
+   绘制：上箭头 = 左右透明边 + 底边着色，下箭头 = 顶边着色；几何
+   全整数（按钮 13px 高、三角 5px → 偏移 4px），无旋转、无描边。 */
+.UNagent-nav-step .UNagent-nav-step-icon {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.UNagent-nav-step--up .UNagent-nav-step-icon {
+  border-bottom: 5px solid var(--text-normal, var(--text-muted, #808080));
+}
+
+.UNagent-nav-step--down .UNagent-nav-step-icon {
+  border-top: 5px solid var(--text-normal, var(--text-muted, #808080));
+}
+
 /* 追加78: 悬停弹出的全量问题面板 —— 用户指定纯白背景（不跟主题），
-   锚在导航条左侧、与 dash 簇同一垂直中线（top 50% 对 safe center）。
+   锚在导航条左侧、与紧凑小部件同一垂直中线（top 50% + translateY）。
    面板是 nodes 的子元素：光标从短横移到面板不会触发 mouseleave。 */
 .UNagent-nav-nodes .UNagent-nav-panel {
   position: absolute;
@@ -2034,9 +2066,15 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
      约 1/3（用户报「编号只显示一半」）。 */
   min-width: min(170px, calc((var(--chat-panel-w, 400px) - 26px) * 0.9));
   max-width: min(300px, calc(var(--chat-panel-w, 400px) - 26px));
-  max-height: 62%;
+  /* 用户报修正：面板是 nodes（紧凑小部件，高度随内容）的绝对定位子
+     元素，62% 这种相对值会算到小容器头上——只剩原来一半高。改用视口
+     基准：长列表自己内部滚动。 */
+  max-height: min(62vh, 480px);
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 触屏按住呼出的面板要能自己滚（列出一长串问题时）——pan-y 放行纵向
+     原生滚动。 */
+  touch-action: pan-y;
   padding: 4px;
   background-color: #fff;
   color: #222;
@@ -2158,12 +2196,6 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
     top: 0;
     bottom: 0;
     left: -10px;
-  }
-
-  /* While the finger is dragging, the dashes brighten — a clear "scrub
-     mode" affordance. */
-  .UNagent-nav-nodes.is-scrubbing .UNagent-nav-dash {
-    opacity: 0.85;
   }
 }
 
