@@ -273,33 +273,36 @@
   opacity: 0.85;
 }
 
-/* 追加㊾：agent 名称 pill——无边框纯白圆角矩形，可点击打开子代理切换菜单。
-   放在空态问候语中，点开显示 CommandPicker 列表。 */
-.UNagent-agent-pill {
+/* 追加㊾：agent 名称 pill——白面圆角 chip，可点击打开子代理切换菜单。
+   放在空态问候语中，点开显示 CommandPicker 列表。
+   (0,2,0) 铁律：裸 (0,1,0) 会被核心 `button:not(.clickable-icon)` (0,1,1)
+   涂成 --interactive-normal 灰（用户报「类似灰色背景」一族）。外观走
+   白面 + 描边 chip（用户指示），深浅色经 --ai-surface 自适应。 */
+.UNagent-chat .UNagent-agent-pill {
   display: inline-flex;
   align-items: center;
   padding: 0 10px;
   height: 24px;
   border-radius: var(--radius-m, 6px);
-  background: var(--background-primary, #fff);
+  background: var(--ai-surface, #fff);
   color: var(--text-accent, var(--interactive-accent));
   font-size: inherit;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--background-modifier-border);
   box-shadow: none;
   outline: none;
   cursor: pointer;
   vertical-align: baseline;
   transition: background 0.15s;
 }
-.UNagent-agent-pill:hover,
-.UNagent-agent-pill:focus-visible {
+.UNagent-chat .UNagent-agent-pill:hover,
+.UNagent-chat .UNagent-agent-pill:focus-visible {
   background: var(--background-modifier-hover);
-  border: none;
+  border: 1px solid var(--background-modifier-border);
   box-shadow: none;
   outline: none;
 }
-.UNagent-agent-pill:active {
+.UNagent-chat .UNagent-agent-pill:active {
   transform: scale(0.96);
 }
 
@@ -1164,11 +1167,16 @@
 
 /* Composer — no top hairline; the input card floats on the chat surface
    with its own border, and safe-area padding keeps it clear of the home
-   indicator on modern phones. */
+   indicator on modern phones. --ai-clear (useBottomClearance) adds a
+   measured desktop lift when a floating app-shell element (default theme's
+   bottom-right status-bar pill, or another floater in FLOATING_SELECTOR)
+   intersects the card's bottom band — exactly enough to clear it, 0 when
+   there is nothing overlapping. */
 .UNagent-composer-wrap {
   flex-shrink: 0;
   position: relative; /* anchor for the @-mention popup */
-  padding: 2px 12px calc(2px + env(safe-area-inset-bottom, 0px));
+  padding: 2px 12px
+    calc(2px + env(safe-area-inset-bottom, 0px) + var(--ai-clear, 0px));
   /* Smooth the safe-area zeroing when is-keyboard activates. */
   transition: padding-bottom 0.15s ease-out;
 }
@@ -1292,9 +1300,13 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
 }
 
 /* (0,2,0) chrome kill — core `.theme-dark button` (0,1,1) would add its
-   --input-shadow 3D lift over our flat error button (same class of bug as
-   the 思考 label). */
+   --input-shadow 3D lift AND repaint the rest state --interactive-normal
+   gray over the (0,1,0) error background (same class of bug as the 思考
+   label) — the semantic red must be re-declared at (0,2,0). */
 .UNagent-chat .UNagent-retry {
+  background: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  border: none;
   box-shadow: none;
   outline: none;
 }
@@ -2794,7 +2806,8 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
 /* Small phones: tighten the chrome so the textarea keeps its room. */
 @media (max-width: 400px) {
   .UNagent-composer-wrap {
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 8px
+      calc(6px + env(safe-area-inset-bottom, 0px) + var(--ai-clear, 0px));
   }
 
   /* Same keyboard-gap fix for small phones (see base rule above).
@@ -3300,6 +3313,9 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   min-width: 0;
 }
 
+/* 头部文件类型图标块：与底部操作按钮同一套 chip 样式（用户指示）——
+   白面（--ai-surface，浅色钉纯白/深色跟随主题）+ 细边框，不再用半透明
+   灰底，深浅色主题自适应。 */
 .UNagent-filecard-icon {
   display: inline-flex;
   align-items: center;
@@ -3308,7 +3324,8 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   width: 28px;
   height: 28px;
   border-radius: var(--radius-s, 4px);
-  background: var(--background-modifier-hover);
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
   color: var(--text-muted);
 }
 
@@ -3527,11 +3544,15 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   background: rgba(229, 57, 53, 0.12);
 }
 
-/* 底部操作按钮：无框体纯图标（审批✓✗/引用/复制地址/复制内容/分享/打开） */
+/* 底部操作按钮：纯图标 chip（审批✓✗/引用/复制地址/复制内容/分享/打开）。
+   Chip 样式（用户指示）：白面 + 细边框区分卡片，深浅色都走 --ai-surface
+   （浅色钉纯白、深色跟随主题）。真实外观放在下面 (0,2,0) 规则里——核心
+   `button:not(.clickable-icon)` (0,1,1) 会把 --interactive-normal 灰涂在
+   (0,1,0) 规则上（这正是用户看到的灰底按钮）。 */
 .UNagent-filecard-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 6px;
   padding: 0;
 }
 
@@ -3556,22 +3577,26 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   height: 14px;
 }
 
+/* (0,2,0) chip chrome — 用户指示的白面+描边，主题自适应。必须 ≥(0,2,0)，
+   否则核心 `button:not(.clickable-icon)` (0,1,1) 在静止态涂灰。 */
 .UNagent-chat .UNagent-icon-btn {
+  background: var(--ai-surface);
+  border: 1px solid var(--background-modifier-border);
   box-shadow: none;
   outline: none;
 }
 
-.UNagent-icon-btn:hover {
+.UNagent-chat .UNagent-icon-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.UNagent-icon-btn:active {
+.UNagent-chat .UNagent-icon-btn:active {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
-.UNagent-icon-btn--danger:hover {
+.UNagent-chat .UNagent-icon-btn--danger:hover {
   color: var(--text-error);
 }
 
@@ -3586,24 +3611,25 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
   border-left: 1px solid var(--background-modifier-border, rgba(128,128,128,0.25));
 }
 
-/* 追加93：接受/拒绝悬停适配语义色 */
-.UNagent-approve-accept:hover {
+/* 追加93：接受/拒绝悬停适配语义色（(0,3,0) 压过 chip 基规则与核心 hover） */
+.UNagent-chat .UNagent-approve-accept:hover {
   background: rgba(76, 175, 80, 0.14);
   color: #2e7d32;
 }
 
-.UNagent-approve-reject:hover {
+.UNagent-chat .UNagent-approve-reject:hover {
   background: rgba(229, 57, 53, 0.12);
   color: #c62828;
 }
 
-/* 引用等受文件状态限制的按钮：文件已删除/不存在时禁用以防失效引用 */
-.UNagent-icon-btn--disabled,
-.UNagent-icon-btn--disabled:hover,
-.UNagent-icon-btn--disabled:active {
+/* 引用等受文件状态限制的按钮：文件已删除/不存在时禁用以防失效引用。
+   (0,2,0) 才能盖过 chip 基规则的背景——禁用态 = 褪色的白面 chip。 */
+.UNagent-chat .UNagent-icon-btn--disabled,
+.UNagent-chat .UNagent-icon-btn--disabled:hover,
+.UNagent-chat .UNagent-icon-btn--disabled:active {
   opacity: 0.35;
   color: var(--text-muted);
-  background: transparent;
+  background: var(--ai-surface);
   cursor: default;
   pointer-events: none;
 }
