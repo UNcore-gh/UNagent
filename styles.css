@@ -1407,13 +1407,19 @@ body.is-mobile .workspace-drawer .UNagent-chat.is-keyboard .UNagent-composer-wra
    the card. These (0,2,0) rules win in every state and keep the field
    surface completely clean. */
 .UNagent-composer-input:hover,
+.UNagent-composer-input:active,
 .UNagent-composer-input:focus,
 .UNagent-composer-input:focus-visible {
-  background: transparent;
-  background-color: transparent;
-  border: none;
-  outline: none;
-  box-shadow: none;
+  /* 追加：第三方插件 / 主题可能注入比 (0,1,1) 更强的 textarea:hover /
+     :focus 规则（e.g. body textarea:hover），给透明的输入区盖一块浅色
+     背景，正好挡住底下渲染的引用 chip（用户报：悬停输入框出现浅色高亮、
+     引用被遮）。!important 钉死——任何来源都不能在悬停/聚焦时给输入框
+     涂背景、描边或光环。 */
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .UNagent-composer-input::-webkit-scrollbar {
