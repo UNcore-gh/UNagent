@@ -1,21 +1,48 @@
-MIT License
+UNcore 专有软件许可协议（Source Available License）
+====================================================
 
-Copyright (c) 2024 UNcore
+Copyright (C) 2026 UNcore. 保留所有权利。
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+本软件（包括但不限于源代码、文档、配置及相关文件，下称"本软件"）
+受本许可协议约束。安装、复制、访问或使用本软件的任何部分，即表示
+您同意接受本协议的全部条款。
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+一、许可授予
+-----------
+1.1 查看与审计：您被授予非独占、不可转让、不可再许可的有限权利，
+    仅为以下目的查看、阅读本软件的源代码：
+    (a) Obsidian 官方插件审核与安全审计；
+    (b) 个人学习与研究。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+二、明确禁止
+-----------
+未经版权人 UNcore 事先书面授权，您不得：
+2.1 将本软件或其任何部分用于商业用途，包括但不限于销售、出租、
+    许可、转售或以任何形式获取经济利益；
+2.2 复制、修改、改编、合并、分发、发布或再分发本软件的全部或
+    部分源代码，无论是否经过修改；
+2.3 将本软件或其衍生作品作为基础，构建、开发或发布任何具有竞争
+    性的产品或服务；
+2.4 将本软件用于提供 SaaS（软件即服务）、托管或其他形式的在线
+    服务；
+2.5 移除、隐藏或篡改本软件中的任何版权声明、许可声明或标识。
+
+三、商业授权
+-----------
+3.1 如需将本软件用于任何商业用途，或获得上述禁止条款的任何例外，
+    必须联系版权人 UNcore 另行签订商业授权协议并支付相应授权费用。
+3.2 未经授权的商业使用构成侵权，版权人保留追究法律责任及要求
+    损害赔偿的权利。
+
+四、免责声明
+-----------
+4.1 本软件按"现状"提供，不附带任何明示或默示的保证，包括但不限于
+    适销性、特定用途适用性及不侵权的保证。
+4.2 在任何情况下，版权人均不对因使用或无法使用本软件而产生的任何
+    直接、间接、偶然、特殊或后果性损害承担责任，即使已被告知发生
+    此类损害的可能性。
+
+五、协议终止
+-----------
+5.1 若您违反本协议任何条款，本协议授予您的权利将自动终止，且无需
+    版权人事先通知。

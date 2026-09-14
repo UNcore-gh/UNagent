@@ -22,7 +22,6 @@ import-meta-url-shim.js
 jest.config.js
 jest.setup.js
 version-bump.mjs
-versions.json
 
 # build junk (main.js IS tracked — it's the shipped binary)
 meta.json

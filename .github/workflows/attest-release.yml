@@ -13,8 +13,13 @@
 #
 # Assets are built locally and committed, so this workflow simply
 # checks out the tagged files and attests their digests — no rebuild
-# needed. Obsidian's marketplace review checks for these attestations
-# on release assets.
+# needed. Its purpose is the verification path above: users and auditors can
+# prove that a published asset came from this repository.
+#
+# (An earlier version of this comment claimed Obsidian's marketplace review
+# requires these attestations. That claim could not be confirmed against
+# Obsidian's submission docs, so it was removed 2026-09-13 — do not restate it
+# as fact without a source.)
 name: Attest Release Assets
 
 on:
