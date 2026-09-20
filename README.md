@@ -73,7 +73,7 @@ The plugin is fully usable at this point. MCP is optional and adds nothing you n
 | `read_note` | Read a note with its metadata; long notes are read in windows | No |
 | `read_document` | Read .docx / .xlsx / .pptx / .pdf / .html as Markdown or plain text | No |
 | `book_read` | Read .epub / .fb2 / .mobi / .azw3 / .txt by chapter | No |
-| `create_note` | Create a note (frontmatter supported; also .canvas/.excalidraw/.base/.json and .html/.htm text files — never inside the config dir) | File card after execution (rejecting trashes it) |
+| `create_note` | Create a note (frontmatter supported; also .canvas/.excalidraw/.base/.json and .html/.htm text files — never inside the config dir) | File card after execution (rejecting deletes it, per your “Deleted files” setting) |
 | `create_folder` | Create a folder, missing parents included | File card after execution (rejecting removes it if empty) |
 | `write_document` | Write a .docx: `create`, `append`, `replace_text` | **Per action**: `create` never asks (it cannot overwrite); `append` / `replace_text` ask first |
 | `edit_note` | Append / replace a section / replace all | File card with diff (accept/reject) |
@@ -81,8 +81,8 @@ The plugin is fully usable at this point. MCP is optional and adds nothing you n
 | `memos` | Read and write UNmemos flash notes — each memo is a node inside a canvas file, not a note. `list` (filter + page), `get`, `create`, `update`, `batch` | **Per action**: `create` never asks; `update` / `batch` ask first (`batch` takes `dry_run`) |
 | `rename_or_move` | Rename or move a note (links updated) | Asks before execution |
 | `rename_or_move_folder` | Rename or move a whole folder | Asks before execution |
-| `delete_note` | Move to trash | **Always asks**; undoable |
-| `delete_folder` | Delete a folder and its contents (needs `recursive: true` when non-empty) | **Always asks**; snapshot capped at 200 files / 500 KB, text files only — beyond that it says so instead of pretending it can undo |
+| `delete_note` | Delete (follows your Obsidian “Deleted files” setting: system trash / vault `.trash` / permanent) | **Always asks**; undoable |
+| `delete_folder` | Delete a folder and its contents, following your Obsidian “Deleted files” setting (needs `recursive: true` when non-empty) | **Always asks**; snapshot capped at 200 files / 500 KB, text files only — beyond that it says so instead of pretending it can undo |
 | `run_command` | Local command/script execution for work **outside** the vault (**desktop only**) | Provably read-only commands skip the prompt (allowlist, fail-closed; can be turned off); everything else asks every time |
 | `run_obsidian_command` | Run a command-palette command, including commands other plugins registered | `run` asks (skipped in don't-ask mode); `list` never asks; no undo entry; app-lifecycle commands (`app:reload` / `app:quit` / `window:close`) are refused |
 | `fetch_url` | Open an http/https page and return it as Markdown | No (read-only, but the URL is sent to that site) |
@@ -139,6 +139,7 @@ Whether an MCP tool is treated as destructive comes **only** from the server's o
 Plugin review flags four behaviours in this plugin. All four are real and all four are deliberate:
 
 - **Network use.** (a) Your model provider — every conversation, including note text and tool results that the model needs to see. (b) Optionally, an embedding API for semantic search, if you enable it. (c) Optionally, MCP servers you add yourself — built-in search presets (exa, bailian-websearch) ship with empty keys and only work once you fill in your own. (d) A URL you or the model choose, via `fetch_url`. There is **no telemetry, no analytics, no account, and no call to any server of ours**. Whatever you put in the context can leave your machine through your chosen provider — that is inherent to using a remote model.
+- **Why `fetch` and not `requestUrl`.** The HTTP layer is `fetch` throughout. Streaming model output requires a readable response body (hand-written SSE over `response.body`), which `requestUrl` cannot provide — it buffers the whole response — so the transport cannot change without losing streaming. Non-streaming calls deliberately stay on the same transport so there is one set of timeout, abort and error semantics. The review hint to prefer `requestUrl` is therefore knowingly not applied.
 - **Shell execution** (`child_process`, desktop only, `run_command`). This exists so the assistant can do work *outside* the vault — conversions, `git`, `rg`, one-off scripts. It is filtered out on mobile, and it is the only place in the codebase that touches local processes. Vault editing never goes through the shell. Commands that can be *proven* read-only (`ls`, `cat`, `git status`, `rg`, `find` without `-exec`, …) skip the confirmation prompt by default; anything that writes, chains an unknown command, redirects output (other than `/dev/null` and fd duplicates), uses command substitution, variable expansion, background jobs, subshells or heredocs, and anything unrecognised asks every time, in every approval mode. The honest caveat: read-only does not mean harmless — `cat ~/.ssh/id_rsa` is read-only too.
 - **Vault file enumeration** (`vault.getFiles` and friends). The plugin lists the paths in your vault to build the keyword search index, resolve `[[wikilinks]]`, list folder contents, and detect which skills apply (is there an ebook in this vault? is there a model that can generate images?). It reads file *contents* only through the documented Obsidian APIs, and only for files a tool was actually asked to read.
 - **Clipboard.** The plugin **writes** to the clipboard only when you click a copy button (copy a message, a note path, an embed, or an image). It never reads the clipboard; pasted images arrive as an ordinary paste event you trigger yourself.
@@ -236,7 +237,7 @@ Bundle size is watched (`main.js` measured at 1,060,825 bytes, ~1,036 KiB, on 20
 | `read_note` | 读取笔记内容（含元数据，超长分段续读） | 否 |
 | `read_document` | 读取非 Markdown 文档：Word `.docx` / Excel `.xlsx` / PowerPoint `.pptx` / `.pdf` / `.html`，转成 Markdown 或纯文本。Word 保留标题层级、列表、表格、加粗斜体与链接；PDF 逐页给出**文本层**（每页以 `<!-- page N -->` 开头），扫描件没有文本层时如实报告（**不做 OCR**）；旧格式（.doc/.xls/.ppt/.rtf/odt）明确拒绝并请用户另存。超长只给一个窗口，按 `nextOffset` 续读；图片/批注/修订会丢，丢什么写在 `warnings` 里 | 否 |
 | `book_read` | 读取库内电子书（.epub / .fb2 / .mobi / .azw3 / .txt）：书目 + 目录，按章读为 Markdown，长章分段续读；只读，DRM 加密书不支持（建议 Calibre 去 DRM） | 否 |
-| `create_note` | 新建笔记（支持 frontmatter；也可建 .canvas/.excalidraw/.base 与 .html/.htm/.json 等文本文件；配置目录 `.obsidian` 内一律拒绝） | 默认/自动模式下执行后卡片审批（拒绝则移入回收站） |
+| `create_note` | 新建笔记（支持 frontmatter；也可建 .canvas/.excalidraw/.base 与 .html/.htm/.json 等文本文件；配置目录 `.obsidian` 内一律拒绝） | 默认/自动模式下执行后卡片审批（拒绝则删除，按你的「删除文件」设置） |
 | `create_folder` | 新建文件夹（缺失的父级一并创建；文件夹不是笔记，不加扩展名） | 默认/自动模式下执行后卡片审批（拒绝则删掉刚建的文件夹，**非空时不删**；可撤销） |
 | `write_document` | 写 Word 文档（`.docx`）一把工具三个动作：`mode=create` 用 Markdown 新建（标题层级、列表、表格、引用、代码块、加粗斜体、超链接变成真正的 Word 结构；同名文件已存在则拒绝，**绝不覆盖**，缺的父文件夹自动创建）、`mode=append` 在正文末尾追加、`mode=replace_text` 全文替换指定原文（找不到就**一个字都不改**）。图片、页眉页脚、批注不受影响；跨格式片段的替换会把那段合并成单一样式（会说明） | **按动作**：`create` 不问（无损失）；`append` / `replace_text` 改的是已有文件，执行前确认（免询模式放行）。撤销**仅本次会话有效**——二进制文档不留持久快照 |
 | `edit_note` | 追加 / 替换章节 / 全文替换（匹配失败会报最相似片段） | 默认/自动模式下执行后卡片审批（diff / 接受 / 拒绝；可撤销） |
@@ -244,8 +245,8 @@ Bundle size is watched (`main.js` measured at 1,060,825 bytes, ~1,036 KiB, on 20
 | `memos` | 读写 UNmemos 闪念笔记（每条 memo 是 canvas 文件里的一个节点，不是 .md 笔记）：`list` 筛选/分页、`get`、`create`、`update`、`batch`。同一画布上用户自己的卡片与分组一律不碰；UNmemos 会自己发现改动，无需重载插件 | **按动作**：`create` 不问；`update` / `batch` 执行前确认（`batch` 可先 `dry_run` 预览命中哪些；免询模式放行）。没有删除动作——与 UNmemos 一致，只能归档 |
 | `rename_or_move` | 改名/移动（自动更新引用） | 默认/自动模式下执行前确认 |
 | `rename_or_move_folder` | 重命名/移动整个文件夹（其中笔记随之移动；链接是否改写取决于你的「自动更新内部链接」设置） | 默认/自动模式下执行前确认；拒绝搬进自己的子目录与数据文件夹 |
-| `delete_note` | 移入回收站 | **执行前强制确认**；可撤销 |
-| `delete_folder` | 删除整个文件夹及其内容（移入回收站）。非空必须显式 `recursive: true` | **执行前强制确认**；快照有上限（200 文件 / 500 KB，且必须全是文本文件），超出时不记录快照并明确告知「本次无法在插件内撤销」 |
+| `delete_note` | 删除（按 Obsidian 的「删除文件」设置：系统回收站 / 库内 `.trash` / 永久删除） | **执行前强制确认**；可撤销 |
+| `delete_folder` | 删除整个文件夹及其内容（按 Obsidian 的「删除文件」设置处理）。非空必须显式 `recursive: true` | **执行前强制确认**；快照有上限（200 文件 / 500 KB，且必须全是文本文件），超出时不记录快照并明确告知「本次无法在插件内撤销」 |
 | `run_command` | 本地命令/脚本执行（**仅桌面**；库外计算专用，不碰库内文件） | **能被证明只读的命令免确认**（ls / cat / git status / rg / find 不带 -exec 等；设置 → 安全 →「只读命令免确认」可关）；其余执行前强制确认；输出保尾部并报告截断规模 |
 | `run_obsidian_command` | 执行 Obsidian 命令面板里的命令（含别的插件注册的）：`action=list` 按关键词找 id，`action=run` 执行指定的一条。只用于「别的工具做不到」的动作（打开某视图、触发某插件） | `run` 执行前确认（**免询模式放行**，与移动/删除同档）；`list` 不确认；**不留撤销快照**；重启/退出/关窗类命令一律拒绝 |
 | `fetch_url` | 打开 http/https 网页转成 Markdown（HTML→Markdown；JSON/纯文本原样返回）。长页只保留开头并报出省略规模；非文本内容与 `file:`/`data:` 拒绝。属**网页通道**，「关闭搜索 / 只搜索笔记」两档下不可用 | 否（只读；但会把该网址发给对应站点） |
@@ -328,7 +329,7 @@ MCP 工具是否被标成破坏性，只看服务端在 `tools/list` 里自报�
 
 - **API Key 明文存储**：所有 Key 以明文存在 vault 的 `data.json` 里（v1 从众做法）。不要把 `data.json` 提交到公开仓库、不要放进会公开同步的目录。
 - **技能是提示注入面**：技能正文会原样注入 AI 的上下文，等同于提示词——**只安装你信任来源的技能**。技能永远是纯提示文本、绝不执行代码，也不能绕过审批：默认/自动模式下的编辑类仍落文件卡片，移动/删除仍走执行前确认。
-- **删除有双保险**：`delete_note` 与 `delete_folder` 永远强制弹窗确认（不受任何「跳过确认」设置影响）；删除与编辑会先尝试留全文快照，成功后对话框顶部「撤销」可还原（撤销栈落盘，重启不丢）。**文件夹删除的快照有上限**：200 个文件 / 500 KB，且子树上必须全是文本文件——文件过多、含图片/PDF/电子书、或有文件读不出来时不记录快照，结果、卡片与提示都会明确写出「本次无法在插件内撤销，只能从回收站找回」，绝不假装可撤销。（另外：超过 100 KB 的快照仍可在本次会话内撤销，但超出落盘上限，重启后该条目会被丢弃。）
+- **删除有双保险**：`delete_note` 与 `delete_folder` 永远强制弹窗确认（不受任何「跳过确认」设置影响）；删除与编辑会先尝试留全文快照，成功后对话框顶部「撤销」可还原（撤销栈落盘，重启不丢）。**文件夹删除的快照有上限**：200 个文件 / 500 KB，且子树上必须全是文本文件——文件过多、含图片/PDF/电子书、或有文件读不出来时不记录快照，结果、卡片与提示都会明确写出「本次无法在插件内撤销；若你的「删除文件」设置是永久删除，则只能从备份找回」，绝不假装可撤销。（另外：超过 100 KB 的快照仍可在本次会话内撤销，但超出落盘上限，重启后该条目会被丢弃。）
 - **MCP 工具与结果都不可信**：远程调用只按服务端自报 annotation 标记是否破坏性，未声明时不会弹确认；即使标记为破坏性，「免询」模式也会放行。输出会进入模型上下文，插件不授予它 vault 句柄，也没有撤销。别接入不受信服务，也不要把 MCP 输出当成可信指令。
 - **`fetch_url` 会把网址发出去、把页面读进来**：它是只读工具、不弹确认（与 MCP 工具的调用一致——审批留给改动本地数据的操作），但要知道：请求会到达那个站点（对方能看到你的 IP 与请求头，插件不伪装 User-Agent），页面文本会进入本次对话上下文（因此也可能被一起发给你的模型服务商）。插件**不拦内网/本地地址**（`http://127.0.0.1:…`、`192.168.*` 之类），也**不做**「哪些地址算内网」的穷举判断——这是本地优先工具的有意取舍，不是遗漏；只让 AI 打开你信得过的网址。另外它只处理文本类内容，二进制（PDF/图片/压缩包）按 content-type 拒绝。
 - **`run_obsidian_command` 能跑任何插件注册的命令，插件看不到它做了什么**：命令是黑盒——插件拿不到它改了哪些文件，所以这一步**不进撤销栈**、也无法在插件侧还原；「免询」模式下连确认都不会弹。系统提示要求库内编辑仍走笔记工具，但那是**软引导**，真正拦得住的是你选的审批模式。会终结当前会话的三类命令（`app:reload` / `app:quit` / `window:close`）被**硬拒绝**，列命令时也不会出现。
@@ -344,7 +345,8 @@ MCP 工具是否被标成破坏性，只看服务端在 `tools/list` 里自报�
 - **Vault Enumeration（`vault.getFiles` 一类调用）**：列出库内路径，用于建关键词检索索引、解析 `[[双链]]`、列文件夹内容，以及判断某个技能该不该出现在本轮（库里有没有电子书、有没有配生图模型）。文件**内容**只在某个工具真的被要求读它时、经 Obsidian 文档化的 API 读取。
 - **Clipboard（剪贴板）**：只有你点「复制」时才**写入**（复制消息、笔记路径、嵌入块、图片）；插件从不主动读剪贴板——粘贴图片走的是你自己触发的那次 paste 事件。
 - **Local Storage（`localStorage`，两个键，不是库内数据）**：一个是开机日志用的「上次没正常退出」标记，一个是「屏幕上确实弹过键盘」的闩锁。两者都必须在 webview 被硬杀时仍能落下——这正是同步的 `localStorage` 能做、异步的插件数据 API 做不到的事。里面只有一个时间戳和一个布尔值：没有笔记内容，也没有密钥。
-- **联网去向**：模型服务商（每轮对话）、可选的 embedding 服务（语义检索）、你自己加的 MCP 服务（内置搜索预设的 key 一律留空，填了才可用），以及 `fetch_url` 打开的那个网址。**没有遥测、没有统计、没有账号、没有任何我方服务器**。
+- **联网去向**：模型服务商（每轮对话）、可选的 embedding 服务（语义检索）、你自己加的 MCP 服务（内置搜索预设的 key 一律留空，填了才可用），以及 `fetch_url` 打开的那个网址。
+- **为什么用 `fetch` 而不是 `requestUrl`**：模型输出要流式（手写 SSE 读 `response.body`），而 `requestUrl` 会把整个响应缓冲下来，做不到流式——网络层换不了；非流式请求也故意留在同一套传输上，超时 / 中止 / 错误的语义只有一份。审核提示的「优先 `requestUrl`」是有意不采纳的。**没有遥测、没有统计、没有账号、没有任何我方服务器**。
 
 ## 平台差异声明
 
