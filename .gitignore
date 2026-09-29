@@ -26,3 +26,5 @@ version-bump.mjs
 # build junk (main.js IS tracked — it's the shipped binary)
 meta.json
 *.js.map
+# mimosa 安全扫描工具的状态目录（本地工具产物，不进公开仓）
+.mimosa/
