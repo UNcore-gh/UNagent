@@ -1,7 +1,7 @@
 {
   "id": "unagent",
   "name": "UNagent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.7.2",
   "description": "Mobile-first AI assistant: lightweight and self-contained on phones/tablets, equally complete on desktop.",
   "author": "UNcore",

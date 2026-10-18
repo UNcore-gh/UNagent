@@ -1,396 +1,173 @@
 # UNagent
 
-**A mobile-first AI assistant for Obsidian — lightweight and self-contained on phones and tablets, and equally complete on desktop.**
+**Use an AI assistant to search, understand, and update your Obsidian notes—with clear controls over what it can change.**
 
-[中文文档](#中文文档)
+Connect your own model provider and API key; UNagent sends requests directly to that provider. See [Data and safety](#data-and-safety) for what leaves Obsidian and how file changes are reviewed.
 
-Plugin id `unagent`, display name "UNagent", by UNcore. Everything the plugin does is either in-plugin JavaScript or a remote HTTP call: native `fetch` with hand-written SSE, no LLM SDK, and **zero local processes on mobile**. On desktop there is exactly one extra capability — `run_command` (local shell execution). See [Boundaries and security](#boundaries-and-security) for what each tool touches and the confirmations it asks for.
+[中文文档](#中文文档) · [Install from Obsidian](https://community.obsidian.md/plugins/unagent) · [Releases and update notes](https://github.com/UNcore-gh/UNagent/releases)
 
-## Quick start (BYO API key)
+<p align="center">
+  <img src="./assets/readme/request-flow.en.svg" width="100%" alt="Illustrative flow: your prompt goes to your configured model; when useful, UNagent tools work with selected vault notes or a requested file action. The result can be an answer or a file change, with review depending on the action and approval mode." />
+</p>
 
-You supply your own model API key. Nothing is bundled, nothing is proxied through us.
+*Illustrative flow. A request does not always call a tool; file review follows the action and approval mode.*
+
+## What you can do
+
+- **Ask questions about your notes.** Search and read Markdown notes, then discuss the results with the model. Optional semantic search uses a remote embedding service and keeps its vector cache in the vault.
+- **Make changes with review.** In the default and automatic approval modes, create and edit actions run first and appear as cards you can accept or reject; edits include a diff. Moves and deletions ask first, and note/folder deletion always asks. Supported edits and deletions can be undone from a saved snapshot.
+- **Bring the assistant to your current work.** Open the chat, or use the Quick Composer over a note, Canvas, Excalidraw, PDF, or a UNreader book/article view. The Quick Composer sends into the same conversation as the chat.
+- **Choose your interface language.** UNagent follows Obsidian's language by default. To set it manually, open **Settings → UNagent → General → Language & appearance → Language mode** and choose **English mode** or **Chinese mode**.
+- **Reference related material.** In the composer, `@` selects notes, `@@` folders, and `@@@` tags. If UNreader or UNmemos is installed, entry rows also let you select RSS articles or memo cards.
+- **Read more than notes.** `book_read` reads EPUB, FB2, MOBI, AZW3, and TXT files. `fetch_url` converts a web page to Markdown. Neither is a general PDF or office-document reader.
+- **Add optional guidance and tools.** Skills are plain-text guides. Remote MCP servers can add tools, but they are optional and should only be connected when trusted.
+
+## Quick start
+
+UNagent uses your own model account. Provider usage fees, if any, are billed by that provider.
 
 ### 1. Install
 
-Manual install for now — drop the three build artifacts into your vault:
+**Recommended:** in Obsidian, open **Settings → Community plugins → Browse**, search for **UNagent**, then choose **Install** and **Enable**.
 
-```
+To install or update manually, download the three files from the [latest GitHub Release](https://github.com/UNcore-gh/UNagent/releases) and place them in your vault:
+
+```text
 <your vault>/.obsidian/plugins/unagent/
 ├── main.js
 ├── manifest.json
 └── styles.css
 ```
 
-Then enable **UNagent** in Settings → Community plugins, and open it from the ✨ ribbon icon or the "Open UNagent chat" command.
+In Obsidian, go to **Settings → Community plugins**, enable **UNagent**, then open it from the ribbon icon or the **Open UNagent chat** command.
 
-### 2. Add a model profile
+### 2. Connect a model
 
-Settings → UNagent → **Models** → "+ Add provider":
+Open **Settings → UNagent → Models → + Add provider**. Choose OpenAI-compatible, Anthropic, or OpenAI Responses; enter the provider's API key; then add a model name. The default API address is filled in for the selected protocol and can be changed.
 
-1. **API protocol** — OpenAI-compatible / Anthropic / OpenAI Responses. Picking one pre-fills the default base URL.
-2. **API base URL** — no `/chat/completions` suffix (the default is already filled in, and you can change it freely).
-3. **API key** — your provider key (the eye button toggles visibility).
+### 3. Start with one request
 
-Below that is the **model list**: type a model name and press Enter (suggestions are fetched from the API). Several providers and protocols can coexist; `/model` switches the model for the current conversation.
+For example: “Search my notes about reading and summarize the main ideas.” You can switch models with `/model`, set reasoning with `/think`, or choose a search mode with `/search`.
 
-### 3. Chat
+In the default and automatic approval modes, create/edit actions appear in a review card after they run. Read the [approval and security boundaries](#data-and-safety) before using tools that change files or call remote services.
 
-Just ask: "search my notes about reading and summarize them", "add a #work tag to Project plan". The assistant streams its answer and calls tools to read and write notes and folders as needed.
+## Data and safety
 
-- In **default** and **auto** modes, create/edit tools run first and then appear as a file card you accept or reject (edits come with a diff).
-- Move and delete ask **before** they run; `delete_note` and `delete_folder` always ask, in every approval mode.
-- `run_command`'s provably read-only commands skip the prompt (can be turned off in Settings → Security); everything else asks every time.
-- Note edits/deletes and folder create/delete leave an undo snapshot — the "Undo" button at the top restores it.
+- **Your model provider receives the conversation context it needs.** This can include note excerpts and tool results. UNagent does not provide a proxy, account, telemetry, or analytics service.
+- **API keys are stored as plain text** in the vault's `data.json`. Keep that file private; do not commit it or place it in a publicly synced folder.
+- **Network use is optional by feature.** Model requests go to your configured provider. Semantic search uses a remote embedding API if enabled. MCP calls go to servers you add. `fetch_url` sends the requested URL to that website, and the page text can then enter the model context.
+- **`fetch_url` does not block private or local network addresses.** Use it only with URLs you trust. It refuses binary files and non-HTTP(S) schemes.
+- **Skills are instructions, not programs.** Their text is added to the model context, so use skills only from sources you trust.
+- **MCP servers are remote and outside the vault's undo system.** Their annotations are supplied by the server and are not proof that a tool is safe. Connect only servers you trust.
+- **Deletion is guarded.** `delete_note` and `delete_folder` always ask before running. Undo snapshots for folder deletion are limited to text files and at most 200 files / 500 KB; larger or non-text folders cannot be restored by UNagent's undo.
+- **Desktop-only shell access:** `run_command` runs commands on your computer and is available only on desktop. Commands the plugin can prove are read-only can skip confirmation when that setting is enabled; other commands ask every time. You can turn off read-only command skipping in Settings → Security.
 
-The plugin is fully usable at this point. MCP is optional and adds nothing you need for the basics.
+## Compatibility and limits
 
-## Capabilities (identical on mobile and desktop)
+- The release manifest declares **Obsidian 1.7.2** as the minimum app version and is not desktop-only.
+- Chat and vault tools are available on mobile and desktop. `run_command` is the one desktop-only tool.
+- The 1.0.2 release checks did not cover physical phone/tablet devices or a live model service.
+- Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
+- `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
+- UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
 
-| Capability | Notes |
-|---|---|
-| Streaming chat | Token-by-token output, stop at any time, friendly errors with retry. Multiple providers/protocols at once, `/model` to switch model, `/think <level>` for reasoning effort (bare `/think` opens the same panel), `/search <level>` for the retrieval mode. The row under the input holds the conversation title (opens conversation management) and the model button (opens the "model · reasoning · retrieval" panel). On phones that row hides while the keyboard is up, leaving only the input. |
-| Retrieval modes | A per-conversation knob with five positions: **search off** (neither vault nor web), **auto** (default; the model decides), **notes only**, **web only**, **web + notes**. The mode is a **hard boundary**: retrieval tools for a disabled channel are removed from that turn's tool table (note read/write tools are unaffected), and the system prompt states the requirement for the turn. Web search goes through remote MCP services (exa / bailian-websearch are pre-configured; their keys are never bundled), plus the built-in `fetch_url`. |
-| 22 tools (23 on desktop) | The assistant reads, searches and writes your notes and folders, and can run command-palette commands. Approval behaviour per tool is listed below. `run_command` is desktop-only, so mobile sees 22 tools. |
-| Skills | Plain-text `SKILL.md` guides, loaded with `//skill-name` or by the model through `load_skill`. Skills **never execute code**. The built-in skills' catalog lines are bilingual (Chinese/English) and follow the UI language; user skills can provide `description_en` and a sibling `SKILL.en.md`. |
-| Hybrid search | Keyword + metadata is the primary channel; semantic search is optional (remote embeddings, local vector cache only). |
-| Image generation | `generate_image` writes into the vault; the folder is configurable (Settings → General → "AI image folder"). |
-| Ebooks | `book_read` reads .epub / .fb2 / .mobi / .azw3 / .txt — table of contents first, then chapter-by-chapter Markdown. DRM-protected books and .azw/.pdf are not supported (convert with Calibre). Read-only: editing books is out of scope. |
-| Web pages | `fetch_url` opens one http/https page and converts it to Markdown; long pages keep their beginning and report what was dropped. Binary content and `file:`/`data:` are refused. It does **not** block private/internal addresses — see the security notes. |
-| Memory and distillation | Three visible files (`agent.md` / `user.md` / `memory.md`) and memory **only when you ask for it** via `save_memory`. `/distill` turns a working session into a note with `[[links]]` in `digests/`. |
-| Text references | In the input box, `@` references a note, `@@` a folder and `@@@` a tag — **three levels, and that is the whole ladder** (typing more `@`'s just stays on tags). RSS articles and UNmemos cards are not extra `@` levels: the `@` list opens with two **entry rows** instead — **"RSS articles"** first, **"UNmemos cards"** right below it — and Enter (or a tap) steps into that list; while you are reading an article it is pinned right below those rows **and opens pre-selected**, so a plain Enter references it without entering the list. Articles insert as a `[[link]]「title」` web reference the assistant can fetch. A card inserts as a `[[canvas#nodeid]]「excerpt」` reference — the native Obsidian canvas-node link: hovering previews that one card, clicking shows its full text (read on demand, never the whole canvas), "Open card" jumps straight to it, and the id in the reference is the memo id the `memos` tool uses. Archived cards are listed only when you type a query. For a text selection, run "Quote selection to AI input" from the command palette to jump to the AI input with "source + selected text" attached; with nothing selected, the command just focuses the input. It has **no default shortcut** — assign one in Settings → Hotkeys if you want it (the quick composer below has none either, since 2026-10-15). |
-| Quick composer over notes | Command palette → "Quick-open the AI composer over the note" overlays the chat composer at the bottom of the active view — notes, canvas, Excalidraw, PDFs, and UNreader books / RSS articles: same input box (slash / @ / skills / reference chips), no conversation-manager or model keys below, and the AI's reply shown in a card above the input — **expanded by default after you send** (same message rendering as the chat, height-capped); collapse it to a one-line strip whose text follows the state: while the answer is streaming it shows the reply's **latest line** live, once the answer is done (and while expanded) it shows **the instruction you sent**. It ships with **no default shortcut** (the Option+Z / Alt+Z default it carried from 2026-09-28 was dropped on 2026-10-15 to follow Obsidian's "no default hotkeys" guideline); assign one in Settings → Hotkeys if you want a key — the plugin's platform keymap workaround follows whichever binding you set. The current content is referenced by default: the file (note / canvas / document), the current book chapter (`[[book]]「当前章节：…」`), or the article's source link (the agent can fetch it). Esc / Backspace on an empty box closes it; sending drives the same conversation as the chat panel. |
-| Conversations | Saved into the vault, restored on restart, multi-level branches (`/branch`), rewind to any turn (`/rewind`), compaction (`/compact`). |
-| MCP | Remote streamableHttp, tools facet only — see [MCP](#mcp-deliberately-minimal). |
+## Releases and source
 
-### The 23 tools
+Obsidian delivers plugin updates through its official Community plugin channel. See [GitHub Releases](https://github.com/UNcore-gh/UNagent/releases) for published versions and their update notes.
 
-| Tool | What it does | Confirmation |
-|---|---|---|
-| `search_notes` | Keyword/metadata search over Markdown notes; filter by name, drill 2–5 levels, paginated | No |
-| `semantic_search` | Optional semantic channel (remote embeddings, local vector cache) | No |
-| `library_index` | Table of contents of your Markdown notes | No |
-| `list_folder` | List the files in a folder, including non-note files; paginated | No |
-| `read_note` | Read a note with its metadata; long notes are read in windows | No |
-| `book_read` | Read .epub / .fb2 / .mobi / .azw3 / .txt by chapter | No |
-| `create_note` | Create a note (frontmatter supported; also .canvas/.excalidraw/.base/.json and .html/.htm text files — never inside the config dir) | File card after execution (rejecting deletes it, per your “Deleted files” setting) |
-| `create_folder` | Create a folder, missing parents included | File card after execution (rejecting removes it if empty) |
-| `edit_note` | Append / replace a section / replace all | File card with diff (accept/reject) |
-| `update_frontmatter` | Add, change or remove frontmatter fields | File card |
-| `memos` | Read and write UNmemos flash notes — each memo is a node inside a canvas file, not a note. `list` (filter + page), `get`, `create`, `update`, `batch` | **Per action**: `create` never asks; `update` / `batch` ask first (`batch` takes `dry_run`) |
-| `rename_or_move` | Rename or move a note (links updated) | Asks before execution |
-| `rename_or_move_folder` | Rename or move a whole folder | Asks before execution |
-| `delete_note` | Delete (follows your Obsidian “Deleted files” setting: system trash / vault `.trash` / permanent) | **Always asks**; undoable |
-| `delete_folder` | Delete a folder and its contents, following your Obsidian “Deleted files” setting (needs `recursive: true` when non-empty) | **Always asks**; snapshot capped at 200 files / 500 KB, text files only — beyond that it says so instead of pretending it can undo |
-| `run_command` | Local command/script execution for work **outside** the vault (**desktop only**) | Provably read-only commands skip the prompt (allowlist, fail-closed; can be turned off); everything else asks every time |
-| `run_obsidian_command` | Run a command-palette command, including commands other plugins registered | `run` asks (skipped in don't-ask mode); `list` never asks; no undo entry; app-lifecycle commands (`app:reload` / `app:quit` / `window:close`) are refused |
-| `fetch_url` | Open an http/https page and return it as Markdown | No (read-only, but the URL is sent to that site) |
-| `generate_image` | Text-to-image into the vault | No |
-| `mcp_admin` | Add, update or remove remote MCP servers | Asks before network discovery and before removal; built-in services cannot be deleted |
-| `load_skill` | Load a skill's full guide | No |
-| `save_memory` | Write memory.md (long-term memory) / user.md (user profile) | No |
-| `ask_user` | The assistant asks you a question | No |
+## More from UNcore
 
-### How retrieval works
-
-The primary channel is keyword + metadata (`metadataCache.set`) search, CJK-friendly. The optional semantic channel splits notes by heading, sends the chunks to a **remote** embedding API, and keeps the resulting vectors only as a local cache (`<data folder>/.retrieval/`), with brute-force cosine top-k. No ANN index, no reranker, no local inference. Retrieval covers **Markdown notes only** — images, PDFs and ebooks are invisible to it ("not found" does not mean "does not exist"); excluded folders stay excluded. Use `list_folder` to enumerate everything in a folder, non-note files included.
-
-### Memory and distillation
-
-The data folder (default `UNagent/`, visible and editable) holds three ordinary Markdown files: `agent.md` (persona and working rules, injected whole), `user.md` (profile) and `memory.md` (long-term memory) — the latter two injected as `-` bullet lines. Memory has exactly one path and it is always user-initiated: you say "remember X", the assistant calls `save_memory`. There is **no automatic reflection pass and no "should I remember this?" prompt**.
-
-`/distill <what>` turns a session into a note under `digests/` with frontmatter, a one-line summary and four fixed sections (conclusions/decisions, notes touched, unfinished/where to resume, key context). Links are verified to exist before being written as `[[links]]`; the distillation index is mentioned in the system prompt **only** if you have used `/distill` at least once, so it costs nothing if you never do.
-
-### What it costs per turn (honest numbers)
-
-Every turn re-sends the system prompt, the tool schemas, the conversation history and the tool results. All four are capped:
-
-| Channel | Mechanism | Numbers |
-|---|---|---|
-| Tool schemas | Fixed cost, estimated from the real registry | 23 built-in tools ≈ 6,202 tokens (measured 2026-09-29, after the office-document tools and `todo_write` were removed); registered MCP tools are extra. A test pins the ceiling. |
-| Skill catalog | The catalog is pruned per turn by the tool table and runtime capabilities | 28 built-in skills ≈ 1,353 tokens with everything enabled (~48 each) |
-| Tool results | Per-result and per-run budgets; tools that paginate themselves are exempt | 6,000 per result; min(24,000, window × 15%) per run; once spent, the per-result cap drops to 1,500 |
-| Conversation history | **Non-destructive**: only what is sent is trimmed, never the visible transcript or the saved conversation | min(24,000, window × 30%), or window × 70% when Anthropic prompt caching is on |
-| System prompt cache | Anthropic protocol marks the system prompt as a cacheable prefix (on by default, per-profile) | ~0.1× on hits, ~1.25× on writes |
-
-Tools that paginate themselves (`read_note` / `book_read` / `list_folder` / `load_skill`) are deliberately exempt: clipping their window would make `nextOffset` a lie and silently skip the middle of a document. There is **no automatic compaction** — `/compact` replaces the visible message list and is saved to disk, so it only ever happens when you type it.
-
-### MCP (deliberately minimal)
-
-Remote streamableHttp transport and the tools facet only: `initialize`, `tools/list`, `tools/call`, hand-written JSON-RPC over `fetch`, no SDK, 10 s timeout. No stdio, WebSocket, OAuth, resources, prompts, sampling or session resumption. At most 8 tools per server; a text result longer than 20,000 characters keeps the **last** 20,000 and reports `keptChars` / `originalLength`.
-
-Whether an MCP tool is treated as destructive comes **only** from the server's own `annotations`: `destructiveHint: true` without `readOnlyHint: true` asks before running (except in don't-ask mode); an explicit `readOnlyHint: true` does not; an undeclared tool does not ask either, but its model-facing description warns that undeclared is not read-only. These annotations are self-reported by a remote server, not proof. MCP tools get no vault handle and no undo entry. **Only connect services you trust.**
-
-## Boundaries and security (read this before you use it)
-
-- **API keys are stored in plaintext** in the vault's `data.json` (the usual v1 approach). Never commit `data.json`, and never put it in a folder that syncs publicly.
-- **Skills are a prompt-injection surface.** A skill's body is injected into the model's context verbatim — treat it as a prompt. Only install skills from sources you trust. Skills are always plain text, never execute code, and cannot bypass approvals.
-- **Deletion has two safety nets.** `delete_note` and `delete_folder` always show a confirmation dialog no matter what your settings say, and deletions/edits try to keep a full-text snapshot first (the "Undo" button, persisted to disk).
-- **MCP tools and their output are untrusted.** The remote call is only marked destructive if the server says so; in don't-ask mode even destructive tools run without prompting. Output enters the model context; the plugin gives it no vault handle and no undo.
-- **`fetch_url` sends the URL out and reads the page in.** It is read-only and does not prompt (approval is reserved for changing local data), but the request reaches that site (it sees your IP; the plugin does not spoof its User-Agent) and the page text enters the conversation context — which means it can also be sent to your model provider. The plugin deliberately does **not** block private/internal addresses (`http://127.0.0.1:…`, `192.168.*`, …): this is a local-first tool, and an "is this address internal?" heuristic would fail closed more often than it helps. It only handles text content; binaries (PDF, images, archives) are refused by content type.
-- **`run_obsidian_command` can run anything any plugin registered, and this plugin cannot see what it did.** Commands are a black box: no vault changes are attributable, so nothing goes on the undo stack, and in don't-ask mode there is no prompt at all. The system prompt tells the model to use the note tools for in-vault edits, but that is a **soft** guidance — the only hard control is your approval mode. Commands that would end the session (`app:reload` / `app:quit` / `window:close`) are refused outright.
-- **Office documents and PDFs are not read (removed 2026-09-29).** `read_document` / `write_document` used to handle `.docx` / `.xlsx` / `.pptx` / `.pdf` / `.html` with all parsing in-plugin (no OCR, no PDF/Office SDK). They were removed to cut the plugin's fixed cost — the hand-written PDF text-layer parser and the .docx writer were the most expensive code to maintain and the least used. **The plugin will not read a .docx/.pdf for you any more**; convert it (or use a dedicated plugin) first. Reading the vault's `.html` files still works through `read_note`, and `fetch_url` still converts a web page to Markdown.
-- **Vendored parsing code:** the ebook layer vendors [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT) and [fflate](https://github.com/101arrowz/fflate) (MIT); origins and versions are recorded in `src/vendor/foliate/README.md`.
-
-### Data access, network use and disclosures
-
-Plugin review flags four behaviours in this plugin. All four are real and all four are deliberate:
-
-- **Network use.** (a) Your model provider — every conversation, including note text and tool results that the model needs to see. (b) Optionally, an embedding API for semantic search, if you enable it. (c) Optionally, MCP servers you add yourself — built-in search presets (exa, bailian-websearch) ship with empty keys and only work once you fill in your own. (d) A URL you or the model choose, via `fetch_url`. (e) Text that another plugin in the same vault hands over through the local `getAI()` bridge (see below). There is **no telemetry, no analytics, no account, and no call to any server of ours**. Whatever you put in the context can leave your machine through your chosen provider — that is inherent to using a remote model.
-- **Why `fetch` and not `requestUrl`.** The HTTP layer is `fetch` throughout, and exactly one source file touches the global — `src/utils/nativeFetch.ts`, imported by every network module. Streaming model output requires a readable response body (hand-written SSE over `response.body`), which `requestUrl` cannot provide — it buffers the whole response — so the transport cannot change without losing streaming. Non-streaming calls deliberately stay on the same transport so there is one set of timeout, abort and error semantics. The review hint to prefer `requestUrl` is therefore knowingly not applied.
-- **Shell execution** (`child_process`, desktop only, `run_command`). This exists so the assistant can do work *outside* the vault — conversions, `git`, `rg`, one-off scripts. It is filtered out on mobile, and it is the only place in the codebase that touches local processes. Vault editing never goes through the shell. Commands that can be *proven* read-only (`ls`, `cat`, `git status`, `rg`, `find` without `-exec`, …) skip the confirmation prompt by default; anything that writes, chains an unknown command, redirects output (other than `/dev/null` and fd duplicates), uses command substitution, variable expansion, background jobs, subshells or heredocs, and anything unrecognised asks every time, in every approval mode. The honest caveat: read-only does not mean harmless — `cat ~/.ssh/id_rsa` is read-only too.
-- **Vault file enumeration** (`vault.getFiles` and friends). The plugin lists the paths in your vault to build the keyword search index, resolve `[[wikilinks]]`, list folder contents, and detect which skills apply (is there an ebook in this vault? is there a model that can generate images?). It reads file *contents* only through the documented Obsidian APIs, and only for files a tool was actually asked to read.
-- **Clipboard.** The plugin **writes** to the clipboard only when you click a copy button (copy a message, a note path, an embed, or an image). It never reads the clipboard; pasted images arrive as an ordinary paste event you trigger yourself.
-- **`localStorage`** (two keys, not vault data): an "unclean shutdown" marker used by the boot log, and a latch recording that the on-screen keyboard was really observed. Both need to survive a hard kill of the webview, which is exactly what the synchronous `localStorage` API does and the asynchronous plugin data API cannot. They contain a timestamp and a boolean — no note content, no keys.
-- **Cross-plugin completion bridge** (`getAI()`). Another plugin installed in the same vault (UNreader today) can call `app.plugins.plugins.unagent?.getAI?.()` to run plain-text completions through the model you configured **here**. What it gets: completion text and the model's display name. What it never gets: tools, the agent loop, your conversation history, your settings, or your API key — requests ride this plugin's existing provider configuration and go to the same model provider as everything else. Disabling UNagent or having no model configured disables the bridge; unloading it aborts in-flight calls.
-
-## Platform differences
-
-- **Mobile (phone/tablet)** = in-plugin JavaScript + remote HTTP. No local processes, no local compute (embeddings are remote too).
-- **Desktop-only capability: one.** `run_command`. On mobile the tool is absent (not an error). Nothing else differs between the two.
-
-## Development
-
-```bash
-npm install
-npm run dev      # esbuild watch, also syncs artifacts into the test vault
-npm run build    # tsc strict typecheck + production bundle → main.js / manifest.json / styles.css
-npm test         # full jest suite
-```
-
-2026-09-21 update: the composer renders references as compact highlight chips inside the input box again (and in message bubbles), so `RefBar` and its styles are gone; that day's `npm run build` measured `main.js` at 1,067,925 bytes (~1,043 KiB) and `styles.css` at 80,311 bytes. Later the same day every render block was unified into one chip system: references, slash commands, skills and sub-agents share the `.UNagent-chip` skeleton and differ only in label width, badge icon and tint, and every one of them opens the same content window on click — in the composer overlay, in user bubbles and in AI answers alike (the empty-state sub-agent button is that same chip). That build measured `main.js` at 1,074,048 bytes (~1,049 KiB) and `styles.css` at 80,234 bytes. The tree also carries other in-progress work, so these are not deltas attributable to one change alone.
-
-2026-09-22 update: chip spacing grew to ½em per side (the composer marker edge is now two U+2005 spaces, matching `padding: 0 0.5em`; body-side margin is `0 0.2em`), slash directives inserted from a picker carry a trailing space, and typing straight after a chip injects the separating space into the stored value — punctuation is a token boundary, so `//周报，正文` stays chip + prose in the composer and in the bubble renderer. This build measured `main.js` at 1,074,938 bytes (~1,050 KiB) and `styles.css` at 80,231 bytes.
-
-2026-09-28 update: the quick composer over notes (see the feature table above) arrived together with the cross-plugin `getAI()` bridge, an adaptive boot heartbeat (5-second ticks for the first minute, then 30 seconds) with an error-storm rate limiter that collapses repeated log lines, and a global composer-card reshape — semicircular ends became a fixed 12px rounded rectangle, one shared token for the chat sidebar, the main window and the quick composer. The **Option+Z (Alt+Z) default shortcut moved from "Quote selection to AI input" to the quick composer** (the quote command is palette-only now; assign it a key yourself if you want one — the platform keymap workarounds follow whichever command holds a binding). The input box's `@` picker also gained RSS-article referencing, reached from the `@` list's entry row (the dedicated fourth `@@@@` level that shipped in that build was trimmed back to three levels the next day — see the 2026-09-29 entry). This build measured `main.js` at 1,089,066 bytes (~1,063 KiB) and `styles.css` at 83,446 bytes.
-
-2026-09-28 follow-up (quick composer bottom clearance): the overlay no longer sits flush against the bottom edge of the view — it keeps a 12px gap, and on phones that gap stacks on top of Obsidian's bottom bar. On phones the bar clearance is the live measured height of `.mobile-navbar` (the same rule the chat panel uses), now **floored at Obsidian's own declared bar strip** (`--navbar-height`, plus its bottom offset in the floating-pill layout that Obsidian 1.12 defaults to), so a measurement that has not landed yet — or a navbar node Obsidian swapped, which would otherwise read as "no navbar" — can no longer drop the input card onto the floating bottom toolbar or behind it; the floor is skipped while the keyboard is up or while the bar is scrolled away, where there is nothing to clear. The navbar node is also re-resolved whenever it leaves the document, so the lift survives an app-shell rebuild. This build measured `main.js` at 1,089,163 bytes (~1,064 KiB) and `styles.css` at 83,882 bytes.
-
-2026-09-29 update: the `@` picker can now reference **UNmemos cards**, and the level ladder was **trimmed back to three `@`'s** — RSS articles and UNmemos cards are not `@` levels any more (typing `@@@@` or more stays on tags); both lists are reached from the two entry rows at the top of the `@` list, so one `@` gets you to either. The entry mirrors the UNreader one (the article you are reading is still pinned below the rows and pre-selected). A card inserts as `[[<storage>.canvas#<memo id>]]「excerpt」` — the native Obsidian canvas-node link: hovering previews that one card (on mobile, long-pressing renders the card's text instead of dumping the canvas JSON), clicking shows the card's full text read on demand plus an "Open card" action, and the 16-digit id in the reference is exactly the memo id the `memos` tool takes, so the assistant can read or update that card without touching the file. The same-day work also adapted the machine side: references of a canvas node now expand for the model as a `【引用 memo：…】` section with the card body (previously such a reference degraded to "unreadable" because a `.canvas` is not a `.md`), and archived cards are listed only when a query is typed. This build measured `main.js` at 1,096,321 bytes (~1,070 KiB) and `styles.css` at 83,953 bytes.
-
-2026-09-30 update: **the startup-work branch (perf/restore-path) merged into the main tree.** The office-document tools (`read_document` / `write_document` / the `documents` skill) and `todo_write` are removed for good (historical todo blocks still render read-only and feed back to the model); the boot heartbeat is gone entirely — startup reads the boot-log tail once and records the previous session's last line as `onload:prev-tail`; per-agent capabilities become declarations (`agent.md` / `subagent.md` frontmatter carries tools/skills/mcp allow lists plus excludes, excludes win; the settings per-agent matrix is retired and the old `perAgent` exclusions live on as a legacy layer); four restore-path changes (pinned mode reads no extra index, startup disk reads defer only when startup is provably still in progress, `vaultIO` drops its pre-read `exists()` probe, FileCard previews lazily near the viewport); and conversation persistence slims tool-block `output`/`args` on write (in-memory stays full, old files stay compatible). Test stubs also swapped fake credentials for non-literal expressions after the security gate started rejecting literal-shaped stub keys. This build measured `main.js` at 1,018,083 bytes (~994 KiB — every 0.11.6 feature plus the startup removals in one bundle, still under 1 MiB) and `styles.css` at 83,953 bytes.
-
-Bundle size is watched (`main.js` measured at 1,018,083 bytes, ~994 KiB, on 2026-09-30 with the startup branch merged on top of all 0.11.6 work; 1,096,321 bytes, ~1,070 KiB, on 2026-09-29 with the UNmemos card entry row + the `--memo` chip kind + the canvas-node preview/modal/context work in the bundle, and the `@` ladder trimmed back to three levels; 995,348 bytes, ~972 KiB, was the startup branch alone on the v0.11.5 base — first build under 1 MiB; 1,089,245 bytes, ~1,064 KiB, on 2026-09-28 with the @ picker's RSS entry row / ordering / default highlight, on top of the quick composer's bottom clearance (12px gap + navbar floor); 1,089,163 bytes, ~1,064 KiB, was the same day's earlier build with just the bottom clearance; 1,089,066 bytes, ~1,063 KiB, was earlier that day with the quick composer, the Option+Z handover, RSS referencing, the `getAI()` bridge and the log rate limiter in the bundle; 1,060,825 bytes, ~1,036 KiB, on 2026-09-20 with the reference strip above the input and the consolidated tool-notification path; 1,061,070 bytes, ~1,036 KiB, was earlier the same day with the `memos` tool and skill in the bundle; 1,036,479 bytes, ~1,012 KiB, was earlier the same day with the `unreader` skill and the `.json` create_note whitelist, and 1,014,204 bytes, ~990 KiB, was the 0.10.0 release artifact on 2026-09-19). After every build, `grep` the bundle to confirm no hidden dependency leaked in (`pglite` / `lexical` / `framer-motion` / `langchain` must all be 0 hits).
+- [UNreader](https://community.obsidian.md/plugins/unreader) — Read ebooks and manage RSS feeds inside Obsidian.
+- [UNmemos](https://community.obsidian.md/plugins/unmemos) — Capture short notes as native Canvas cards, stored locally.
 
 ## License
 
-**UNcore Source Available License** — see [LICENSE](LICENSE). This is not an open-source licence: reading and auditing the source is permitted (including for Obsidian's own plugin review), while commercial use, redistribution and republishing require written permission. The plugin is therefore **closed source in the Community directory sense** — the distributed `main.js` is a minified bundle, and the source lives in a private repository that is opened to Obsidian's review process. Commercial licensing: contact UNcore.
+**UNcore Source Available License** — source-visible, not an open-source license. Reading and auditing the source is permitted for Obsidian's plugin review and personal learning or research. Commercial use, modification, redistribution, and republishing require prior written permission. The Community directory marks the listing as privately source-reviewed; the public repository contains a minified `main.js`, while the source is kept in a private repository for review. See [LICENSE](LICENSE).
 
 ---
 
 # 中文文档
 
-**给 Obsidian 用户的移动优先 AI 助手——手机平板上轻量自足，桌面上同样完整可用。**
+**在 Obsidian 里用 AI 搜索、理解和整理笔记，并清楚掌握它能改什么。**
 
-插件 id 是 `unagent`、显示名是「UNagent」，作者 UNcore。核心是「纯插件内 JS + 远程 HTTP」：不依赖任何 LLM SDK（原生 `fetch` + 手写 SSE），移动端零本地进程；桌面端在此之上只多一条本地命令执行（`run_command`：只读命令默认免确认，写入的与认不出的一律逐次确认，见「边界与安全」）。
+连接你自己的模型服务和 API Key；UNagent 会直接向该服务发送请求。关于哪些内容会离开 Obsidian、文件改动如何复核，请先看[数据与安全边界](#数据与安全边界)。
 
----
+[English](#unagent) · [从 Obsidian 安装](https://community.obsidian.md/plugins/unagent) · [版本与更新说明](https://github.com/UNcore-gh/UNagent/releases)
 
-## 5 分钟上手（BYO key：自带你自己的模型 Key）
+<p align="center">
+  <img src="./assets/readme/request-flow.zh.svg" width="100%" alt="示意流程：你提出请求，由自己配置的模型回答，或按需请求工具；UNagent 工具处理相关笔记或文件操作，结果可能是回答或文件改动，复核方式取决于动作与审批模式。" />
+</p>
 
-### 第一步：安装
+*示意流程：每次请求不一定调用工具；文件复核方式取决于动作和审批模式。*
 
-目前手动安装。把构建产物三件套放进你的 vault：
+## 能做什么
 
-```
+- **围绕笔记提问。** 搜索、阅读 Markdown 笔记，再和模型讨论结果。可选语义检索会使用远程向量服务，并把向量缓存保存在 vault 中。
+- **改动有确认。** 默认和自动审批模式下，新建与编辑动作执行后会显示卡片供你接受或拒绝；编辑卡片带差异对比。移动和删除会先询问，删除笔记与文件夹无论审批模式都会先询问。支持的编辑和删除可以通过保存的快照撤销。
+- **在当前页面快速提问。** 可以打开对话面板，也可以在笔记、Canvas、Excalidraw、PDF 或 UNreader 的书籍/文章页面上打开正文快速输入框。它和对话面板共用同一段会话。
+- **选择界面语言。** 默认跟随 Obsidian 的语言；也可以在**设置 → UNagent → 通用 / General → 语言与外观 / Language & appearance → 语言模式 / Language mode**中选择**英文模式 / English mode**或中文模式。
+- **引用相关内容。** 输入框里用 `@` 找笔记、`@@` 找文件夹、`@@@` 找标签。安装 UNreader 或 UNmemos 后，还能从入口行选择 RSS 文章或卡片。
+- **读取网页和电子书。** `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT；`fetch_url` 把网页转成 Markdown。它们都不是通用 PDF 或办公文档阅读器。
+- **按需扩展。** Skill 是纯文本操作指南；远程 MCP 服务可以增加工具，但都是可选项，只连接你信任的服务。
+
+## 快速上手
+
+UNagent 使用你自己的模型账户；如服务商收费，费用由服务商收取。
+
+### 1. 安装
+
+**推荐方式：**在 Obsidian 打开**设置 → 第三方插件 → 浏览**，搜索 **UNagent**，然后点击**安装**和**启用**。
+
+如需手动安装或更新，从[最新 GitHub Release](https://github.com/UNcore-gh/UNagent/releases)下载三个文件，放到 vault：
+
+```text
 <你的 vault>/.obsidian/plugins/unagent/
 ├── main.js
 ├── manifest.json
 └── styles.css
 ```
 
-然后 设置 → 第三方插件 → 启用「UNagent」。左侧栏 ✨ 图标或命令面板「Open UNagent chat」打开对话框。
+然后在 Obsidian **设置 → 第三方插件**中启用 **UNagent**，通过左侧栏图标或命令面板里的 **Open UNagent chat** 打开。
 
-### 第二步：添加模型档案
+### 2. 连接模型
 
-设置 → UNagent →「模型」标签页 → 点「模型厂商」标题行右侧的 **「＋ 添加厂商」**，在弹窗里填三项关键配置：
+打开 **设置 → UNagent → 模型 → + 添加厂商**。选择 OpenAI 兼容、Anthropic 或 OpenAI Responses 协议，填写服务商 API Key，再添加模型名称。选择协议后会预填 API 地址，你也可以修改。
 
-1. **API 协议**（下拉）：选你的服务商协议（OpenAI 兼容 / Anthropic 等），选完会自动回填对应的默认地址；
-2. **API 地址**：即 Base URL，接口地址不含 `/chat/completions` 等路径后缀（选协议时已预填，可任意改写）；
-3. **API 密钥**：你的服务商 Key（右侧「眼睛」按钮可显示/隐藏）。
+### 3. 试着提出一个请求
 
-再往下是**模型列表**：输入模型名回车添加（会自动从 API 拉取联想），保存即生效。可以同时添加多个厂商、多种协议并存；对话里发 `/model` 随时切换本会话模型。
+例如：“搜索我关于读书的笔记，并总结主要观点。”你可以用 `/model` 切换模型、用 `/think` 设置思考强度、用 `/search` 选择检索模式。
 
-### 第三步：开聊
+默认和自动审批模式下，新建/编辑动作执行后会进入复核卡片。使用会改文件或访问网络的工具前，请先阅读[审批与安全边界](#数据与安全边界)。
 
-直接说需求就行，例如「搜索关于读书的笔记并总结一下」「给《项目计划》加上 #work 标签」。AI 会流式回答、按需调用工具读写你的笔记与文件夹；默认/自动模式下，新建/编辑类工具执行后会在文件卡片给出接受/拒绝（编辑类带 diff），移动与删除在执行前确认，其中 `delete_note`、`delete_folder` 无论审批模式都强制确认；`run_command` 里能被证明只读的命令默认免确认（设置可关），其余照旧逐次确认。笔记编辑/删除、文件夹创建/删除会留撤销快照，改错了点顶部「撤销」。
+## 数据与安全边界
 
-到这里插件已完整可用——不配 MCP，功能一样不缺。
+- **模型服务商会收到对话所需的上下文。** 其中可能包括笔记摘录和工具结果。UNagent 不提供代理、账号、遥测或统计服务。
+- **API Key 以明文保存在 vault 的 `data.json` 中。** 请妥善保管，不要提交到 Git，也不要放在公开同步目录。
+- **联网按功能发生。** 模型请求发往你配置的服务商；启用语义检索时会调用远程向量服务；MCP 请求发往你添加的服务器；`fetch_url` 会把网址发给对应网站，网页正文之后也可能进入模型上下文。
+- **`fetch_url` 不拦截内网或本机地址。** 只打开你信任的网址。它会拒绝二进制文件和非 HTTP(S) 地址。
+- **Skill 是提示文本，不是程序。** 它的内容会交给模型，因此只使用可信来源的 Skill。
+- **MCP 服务在远端运行，不受 vault 撤销功能保护。** 工具安全标记由服务端提供，不能证明工具一定安全。只连接你信任的服务。
+- **删除有保护。** `delete_note` 和 `delete_folder` 执行前总会询问。文件夹删除的撤销快照最多保存 200 个文件或 500 KB，且仅支持文本文件；超出范围时，UNagent 无法通过撤销恢复。
+- **桌面专属的本地命令：** `run_command` 会在你的电脑上运行命令，只在桌面端提供。开启只读命令免确认后，插件能证明为只读的命令可跳过确认；其余命令每次都会询问。可在设置 → 安全中关闭这项免确认。
 
----
+## 兼容性与限制
 
-## 能力清单（移动 + 桌面一致）
+- 发布包的 manifest 声明最低支持 **Obsidian 1.7.2**，插件并非桌面专用。
+- 移动端和桌面端都可使用对话与 vault 工具；`run_command` 是唯一的桌面专属工具。
+- 1.0.2 版本验收未覆盖手机/平板真机和真实模型服务。
+- 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
+- `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
+- RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
 
-| 能力 | 说明 |
-|---|---|
-| 流式对话 | 逐字输出、可随时停止、错误有友好提示可重试；多厂商多协议档案并存，`/model` 切换会话模型，`/think <档位>` 直接设思考强度（裸 `/think` 打开同一个面板），`/search <档位>` 直接设检索模式（裸 `/search` 同样打开那个面板）。输入框下方一行：左半边是对话标题（点开对话管理面板），右半边是模型键（点开「模型 · 思考强度与检索模式」面板，最上面是思考强度与检索模式两个档位控件，下面直接选模型）；手机上键盘弹起时这一行整体隐藏，键盘上方只剩输入框 |
-| 检索模式 | 会话级旋钮，五档：**关闭搜索**（既不翻库内笔记也不联网）/ **自动**（默认，由 AI 自己决定）/ **搜索笔记** / **搜索网页** / **搜索网页和笔记**。档位是**硬边界**：对应通道的检索工具真的不会进入这一轮的工具表（读写笔记的工具不受影响），同时系统提示里写明本轮要求。入口两个：输入框下方模型键的面板顶部档位控件，或 `/search <档位>`。**搜索网页**走远程 MCP 联网服务（插件已内置 exa / bailian-websearch），模型档案勾了「联网搜索」时还会额外注入服务端内置联网；另有内置的 `fetch_url` 打开用户给出的网址（同样属网页通道，所以这两档下不可用——搜索服务给的是标题与链接，打不开页面） |
-| 22 个工具（桌面 23） | AI 可读、搜、写你的笔记与文件夹、执行 Obsidian 命令面板的命令（清单见下，共 23 个）；默认/自动模式下新建/编辑类执行后走文件卡片审批，移动/删除执行前确认，其中删除文件夹与删除笔记永远强制确认；桌面端的本地命令里只读的那些默认免确认（设置可关），写入的与认不出的一律逐次确认；笔记编辑/删除、文件夹创建/删除可撤销；桌面端另有本地命令执行（`run_command`，移动端不可见，故移动端为 22 个） |
-| 技能 (Skills) | 纯提示文本的 SKILL.md 指南，`//技能名` 调用或 AI 按需 `load_skill` 载入；绝不执行代码。官方技能的**目录行**（每轮进上下文的那一行）中英双语，英文界面自动取英文版；用户自建技能用 `description_en` 与兄弟文件 `SKILL.en.md` 提供英文版 |
-| 混合检索 | 关键词 + 元数据为主通道；语义检索可选（远程 embedding + 本地向量缓存，见下） |
-| 生图 | `generate_image` 文生图存入 vault，可插入笔记/设为封面；存放目录可配置（设置 → 通用 →「AI 生图目录」） |
-| 电子书阅读 | `book_read` 读 .epub / .fb2 / .mobi / .azw3 / .txt：先取书目与目录，再按章输出 Markdown（超长分段续读）；配 `book-read` / `ebook-workflows` 技能做摘录、翻译、整本导入；DRM 加密书与 .azw/.pdf 不支持（引导 Calibre 转换）。**只读**：改书/拆章/改封面属于二期，请用 Calibre |
-| 网页阅读 | `fetch_url` 打开一个 http/https 网页并转成 Markdown（HTML 转换复用电子书那套，JSON/纯文本原样返回）。搜索服务给的是标题与链接、打不开页面，这一条补的正是那一步。长页只保留开头并如实报出省略了多少；二进制内容与 `file:` / `data:` 之类一律拒绝；响应不带 content-type 时不猜、直接说打不开（不把可能的乱码当正文）。属**网页通道**——「关闭搜索 / 只搜索笔记」两档下不可用；不拦内网地址，见「边界与安全」 |
-| 记忆与沉淀 | agent.md / user.md / memory.md 三个可见文件 + **完全由你发起**的显式记忆（`save_memory`）；一段工作结束时用 `/distill` 沉淀成一篇带 `[[链接]]` 的笔记（见下） |
-| 文字引用 | 输入框里 `@` 引用笔记、`@@` 引用文件夹、`@@@` 引用标签——**只有三档，多敲的艾特不再换档**（`@@@@` 及以上仍按标签档算）。RSS 文章与 UNmemos 卡片不是艾特档位：`@` 列表首部是**两行入口**（「RSS 文章」在上、「UNmemos 卡片」紧随），回车（或点击）进入对应的列表挑选——一个艾特就能进任何一份列表；正在阅读某篇文章时，那篇文章钉在两个入口行之下（标「当前」，且**打开时默认就选中它**），直接回车即可引用、不必进二级菜单。文章按 `[[链接]]「标题」` 网页引用插入（模型可 fetch_url 读全文）；卡片按 `[[存储文件#memo id]]「正文片段」` 插入——这是 Obsidian 画布节点链接的原生写法：悬停直接预览那一张卡片（手机上长按浮层渲染卡片正文，不是整份 canvas JSON），点击现读全文并给「打开卡片」，引用里那串 16 位数字就是 `memos` 工具收的 memo id（模型要读要改都用它，不必碰文件）；归档卡片只在输入查询时才列出。选中文字后运行命令面板「引用选中文字到 AI 输入框」，一键跳到 AI 输入框并自动带上「来源 + 选中文字」引用；网页选区带页面地址（选中处是链接时连带链接本身）；没有选中内容（或引用失败）时运行也只聚焦输入框。该命令**默认不绑快捷键**——在 设置 → 快捷键 里搜「引用」可自绑（快速输入框自 2026-10-15 起同样不绑默认键） |
-| 正文快速输入框 | 命令面板「在正文中快速打开 AI 输入框」：在**当前激活视图**底部叠出聊天同款输入框——笔记、canvas、Excalidraw、PDF、UNreader 的书籍与 RSS 文章都能开（宽度一律按 markdown 可读行宽居中）；斜杠 / 艾特 / 技能 / 引用 chip 全部一致，不出现下方那行对话管理与模型键。**不附带默认快捷键**（2026-09-28 起它曾默认 Option+Z／Alt+Z，2026-10-15 按 Obsidian 官方「不要给命令默认快捷键」的审核要求撤下）；要一键打开的，在 设置 → 快捷键 里给它绑一个即可——插件那套平台 keymap 失真兜底会跟着你绑的键走。默认引用**当前内容**：笔记/画布/文档引文件，书籍引到当前章节（`[[书]]「当前章节：…」`），RSS 引到文章源链接（模型可 fetch_url 读全文）。AI 的回答出现在输入框上方的卡里（与聊天界面同一套消息渲染，高度有上限、内部滚动），**发送后默认展开**；手动收起后剩一行横幅，文案跟着状态走——正在回答时实时显示回答的**最新一行**，回答结束后（以及展开态）显示**你最后发送的指令/问题**。Esc / 空输入框起点退格关闭；发送走的就是聊天面板那一段对话，关掉覆盖层生成不中断 |
-| 对话管理 | 自动保存进 vault、重启恢复、多层分支（`/branch`）、任意轮回溯（`/rewind`）、`/compact` 压缩 |
-| MCP（最小形态） | 仅远程 streamableHttp + tools 面，见「边界」一节 |
+## 版本与源码
 
-### 工具清单（26 个）
+插件更新通过 Obsidian 官方第三方插件渠道提供；已发布版本和对应更新说明见 [GitHub Releases](https://github.com/UNcore-gh/UNagent/releases)。
 
-| 工具 | 作用 | 审批 / 风险 |
-|---|---|---|
-| `search_notes` | 关键词 + 元数据（标签/文件夹）检索；只带文件夹过滤时即文件夹浏览（返回子文件夹） | 否 |
-| `semantic_search` | 语义检索（远程 embedding，本地只存向量缓存） | 否 |
-| `library_index` | 库目录（启发式摘要缓存） | 否 |
-| `list_folder` | 列文件夹内容：子文件夹、笔记，**以及图片/PDF/电子书等非笔记文件**；可按名字过滤、可下钻 2-5 层、分页续读。属笔记检索通道，故「关闭搜索 / 只搜索网页」两档下不可用 | 否 |
-| `read_note` | 读取笔记内容（含元数据，超长分段续读） | 否 |
-| `book_read` | 读取库内电子书（.epub / .fb2 / .mobi / .azw3 / .txt）：书目 + 目录，按章读为 Markdown，长章分段续读；只读，DRM 加密书不支持（建议 Calibre 去 DRM） | 否 |
-| `create_note` | 新建笔记（支持 frontmatter；也可建 .canvas/.excalidraw/.base 与 .html/.htm/.json 等文本文件；配置目录 `.obsidian` 内一律拒绝） | 默认/自动模式下执行后卡片审批（拒绝则删除，按你的「删除文件」设置） |
-| `create_folder` | 新建文件夹（缺失的父级一并创建；文件夹不是笔记，不加扩展名） | 默认/自动模式下执行后卡片审批（拒绝则删掉刚建的文件夹，**非空时不删**；可撤销） |
-| `edit_note` | 追加 / 替换章节 / 全文替换（匹配失败会报最相似片段） | 默认/自动模式下执行后卡片审批（diff / 接受 / 拒绝；可撤销） |
-| `update_frontmatter` | 增删改 frontmatter 字段；数组字段可合并去重（加标签用它） | 默认/自动模式下执行后卡片审批（接受 / 拒绝；可撤销） |
-| `memos` | 读写 UNmemos 闪念笔记（每条 memo 是 canvas 文件里的一个节点，不是 .md 笔记）：`list` 筛选/分页、`get`、`create`、`update`、`batch`。同一画布上用户自己的卡片与分组一律不碰；UNmemos 会自己发现改动，无需重载插件 | **按动作**：`create` 不问；`update` / `batch` 执行前确认（`batch` 可先 `dry_run` 预览命中哪些；免询模式放行）。没有删除动作——与 UNmemos 一致，只能归档 |
-| `rename_or_move` | 改名/移动（自动更新引用） | 默认/自动模式下执行前确认 |
-| `rename_or_move_folder` | 重命名/移动整个文件夹（其中笔记随之移动；链接是否改写取决于你的「自动更新内部链接」设置） | 默认/自动模式下执行前确认；拒绝搬进自己的子目录与数据文件夹 |
-| `delete_note` | 删除（按 Obsidian 的「删除文件」设置：系统回收站 / 库内 `.trash` / 永久删除） | **执行前强制确认**；可撤销 |
-| `delete_folder` | 删除整个文件夹及其内容（按 Obsidian 的「删除文件」设置处理）。非空必须显式 `recursive: true` | **执行前强制确认**；快照有上限（200 文件 / 500 KB，且必须全是文本文件），超出时不记录快照并明确告知「本次无法在插件内撤销」 |
-| `run_command` | 本地命令/脚本执行（**仅桌面**；库外计算专用，不碰库内文件） | **能被证明只读的命令免确认**（ls / cat / git status / rg / find 不带 -exec 等；设置 → 安全 →「只读命令免确认」可关）；其余执行前强制确认；输出保尾部并报告截断规模 |
-| `run_obsidian_command` | 执行 Obsidian 命令面板里的命令（含别的插件注册的）：`action=list` 按关键词找 id，`action=run` 执行指定的一条。只用于「别的工具做不到」的动作（打开某视图、触发某插件） | `run` 执行前确认（**免询模式放行**，与移动/删除同档）；`list` 不确认；**不留撤销快照**；重启/退出/关窗类命令一律拒绝 |
-| `fetch_url` | 打开 http/https 网页转成 Markdown（HTML→Markdown；JSON/纯文本原样返回）。长页只保留开头并报出省略规模；非文本内容与 `file:`/`data:` 拒绝。属**网页通道**，「关闭搜索 / 只搜索笔记」两档下不可用 | 否（只读；但会把该网址发给对应站点） |
-| `generate_image` | 文生图并存入 vault（目录可配置：设置 → 通用 →「AI 生图目录」，留空 = 数据文件夹下的 `images/`） | 否 |
-| `mcp_admin` | 远程 MCP 服务增/改/删（action=add/update/remove） | 联网发现前确认；删除前确认；官方服务不可删 |
-| `load_skill` | 按名载入某个技能的完整指南 | 否 |
-| `save_memory` | 写入 memory.md（长期记忆）/ user.md（用户画像） | 否 |
-| `ask_user` | AI 主动向你提问 | 否 |
+## UNcore 的其他 Obsidian 插件
 
-### 检索怎么工作（如实版）
+- [UNreader](https://community.obsidian.md/plugins/unreader) —— 在 Obsidian 中阅读电子书并管理 RSS 订阅。
+- [UNmemos](https://community.obsidian.md/plugins/unmemos) —— 把短想法保存为 Canvas 原生卡片，数据留在本地。
 
-检索以**关键词 + 元数据**（`metadataCache`）为主通道，CJK 友好。可选开启语义通道：笔记按标题切块 → **远程** embedding API 算向量 → 向量只是远程结果的本地缓存（存数据文件夹 `.retrieval/`）→ 暴力余弦 top-k。embedding 计算不在本地发生，不引入 ANN 索引与重排序模型。embedding 模型复用统一的厂商体系（模型能力勾「向量化（检索）」），未配置时零启动成本。
+## 许可证
 
-库内检索（`search_notes` / `semantic_search` / `library_index`）**只覆盖 Markdown 笔记**——图片、PDF、电子书等非笔记文件对它们不可见，「没搜到」不等于「不存在」；被排除的文件夹也默认不在范围内。要枚举文件夹内容（含非笔记文件）用 `list_folder`。这一条只写在系统提示里一次，不再散落在各工具描述里。联网那一半：搜索靠 MCP 服务，打开具体页面靠 `fetch_url`。
-
-### 记忆与沉淀
-
-数据文件夹（默认 `UNagent/`，可见可编辑）里三个文件：
-
-| 文件 | 职责 | 注入方式 |
-|---|---|---|
-| `agent.md` | 助手人设与工作守则 | 整篇注入系统提示 |
-| `user.md` | 用户画像 | `-` 开头条目注入 |
-| `memory.md` | 长期记忆 | `-` 开头条目注入 |
-
-记忆只有**一条**路径，且完全由你发起：你说「记住 xxx」，AI 用 `save_memory` 写入（带提示注入防护与额度），下次新对话生效。**没有任何自动复盘、没有「要不要记住」的弹窗**——需要长期记住什么由你决定。
-
-沉淀解决的是另一件事：一段工作做完之后，怎么让下次不用从零开始。
-
-- `/learn` 把一次对话结晶成一个可复用技能（纯提示文本的操作指南）。
-- `/distill <要沉淀什么>` 把这段工作沉淀成一篇笔记，落在数据文件夹的 `digests/` 下，并在 `digests/index.md` 追加一行索引。笔记带 frontmatter、一行摘要，以及四段固定结构（结论/决定、动过的笔记、未完成/下次从这里开始、关键上下文），其中「动过的笔记」是指向相关笔记的 `[[链接]]`——**写链接前会先核对路径真实存在**，核对不了的写成纯文本，避免死链。下次做同一件事时，从那篇接着走。
-
-注入是**按需**的：只有当你真的用过 `/distill`（`digests/index.md` 存在）时，系统提示里才会多出一句「沉淀索引在哪、问起旧事先读它」；没用过就一个字都不提，零额外开销。沉淀不需要你维护，它只是某个时点的快照——当前真相永远在你自己的笔记里。
-
-### 上下文成本怎么控制（如实版）
-
-每轮要重发的输入 = 系统提示 + 工具 schema + 对话历史 + 工具结果。四者都有上限：
-
-| 通道 | 机制 | 数值 |
-|---|---|---|
-| 工具 schema | 固定开销，芯片按注册表里的真实工具量出 | 23 个内置工具 ≈ 6,202 tokens（`estimateToolSchemaTokens` 实测，2026-09-29 移除办公文档工具与 `todo_write` 后；此前 26 个为 7,149、25 个为 6,561、23 个为 5,853、22 个为 5,463、21 个为 5,399、17 个为 4,215）；已注册的 MCP 工具另计。上限由 `promptCost.test.ts` 守着（实测 + 固定绝对余量），撞线时先合并/瘦身 |
-| 技能目录（系统提示里的一部分） | 目录随本轮**工具表**与**运行时能力**裁剪：被摘掉的能力连名字都不出现 | 28 条官方技能 ≈ 1,353 tokens（能力全开时实测，平均约 48/条）：2026-09-29 移除 `documents` 后从 1,381 降到 1,353；此前 29 条为 1,381（2026-09-20 加 `unreader` 后是 28 条 1,381，同日再加 `memos` 前先压缩了几条最长的描述，所以 29 条仍是 1,381——**这条线一次都没抬过**）；更早 27 条为 1,335、26 条为 1,292 |
-| 工具结果 | 单条预算 + 每轮累计预算；自报分窗的工具不裁 | 单条 6,000；累计 min(24,000, 窗口×15%)；用掉后单条降到 1,500 |
-| 对话历史 | **非破坏性**预算：只缩减发给模型的那份，可见记录 / 已落盘对话 / 分支都不动 | min(24,000, 窗口×30%)；开了 prompt 缓存则退化为纯溢出兜底（窗口×70%） |
-| 系统提示缓存 | Anthropic 协议把系统提示标成可缓存前缀（默认开，厂商档案可关） | 命中约 0.1x 计费，写入约 1.25x |
-
-几点如实说明：
-
-- **自报分窗的工具刻意不裁**：一次 2 万字符的笔记分 4 次 5 千读，输入是 5k+10k+15k+20k = 50k；一次读完只发 20k。截断它的窗口反而更贵，还会让 `nextOffset` 变成谎话、静默跳过中间那段——所以 `read_note` / `book_read` / `list_folder` / `load_skill` 的结果完全跳过预算（`list_folder` 自带 `limit ≤ 200` 的窗口上限，`load_skill` 一份技能正文一个窗口、超长续读）。`load_skill` 是这条规则里唯一「不是数据而是指令」的一个：被截断的指南更糟——模型不会发现自己少了半份，只会照着前半段做。
-- **技能目录会随能力消失（不只是工具）**：技能声明的运行时能力不存在时，目录里连名字都不出现——没配生图模型（`image-generator`）、库里没有可读电子书（`book-read` / `ebook-workflows`）、Obsidian 版本不支持 `.base`（`obsidian-bases`，Bases 是 1.9.0 的核心功能）。`Dataview` / `Excalidraw` 这两个依赖**社区插件**的技能不做自动门控（可靠侦测要用未公开 API），改为在目录行里写明依赖，并在设置页可自由开关。
-- **历史预算不是固定 24,000**：未开缓存时取 `min(24,000, 窗口×30%)`，所以 8K 模型实际只有约 2,400；长窗口模型的常见短对话通常够不到。它的价值是给真正长的会话兜住溢出、止住历史越长每轮重发越贵的二次增长。要主动压缩整段上下文，仍然敲 `/compact`。
-- **不做自动压缩**：`/compact` 会替换可见的消息列表并落盘，自动触发等于静默删掉你的对话记录，所以只在你敲命令时发生。
-- **缓存可能静默失效**：缓存是前缀匹配，前缀里任何一处变化（包括工具集）都会让它整体失效。开诊断日志后每轮会有一条 `cache read=… write=…`，读侧连续为 0 就说明没命中。
-- **芯片**：首轮之前是粗估（系统提示 + 工具 schema + 消息），首轮之后一律用服务商返回的真实用量。
-
-### MCP 边界（如实描述，不夸大）
-
-只做**远程 streamableHttp 传输 + tools 面**：`initialize` / `tools/list` / `tools/call` 三个方法，纯 fetch 手写 JSON-RPC、零 SDK，单次请求超时 10 秒。不做 stdio / WebSocket / OAuth / resources / prompts / sampling / 会话恢复。工具总数上限 8 个；单条文本结果超过 2 万字符时保留**最后** 2 万字符，并返回 `keptChars` / `originalLength`，非文本片段数量也会明确上报。设置 →「MCP」标签页添加服务，Agent 级可再按代理开关。
-
-内置官方预设服务（bailian-websearch 联网搜索、exa 搜索），`key 一律留空`不在插件里内置——需在「MCP」设置里编辑对应服务、填入你自己的 Authorization 再「测试并刷新工具」才能调用；官方服务不可删除，只能开关/编辑。
-
-MCP 工具是否被标成破坏性，只看服务端在 `tools/list` 里自报的 `annotations`；是否真正弹执行前确认，还受全局审批模式约束。分三档：
-
-- `destructiveHint: true` 且未声明 `readOnlyHint: true`：按破坏性工具处理；默认与「自动（编辑放行）」模式下执行前确认，「免询」模式仍会放行；
-- `readOnlyHint: true`：按只读工具处理，不确认；
-- 未声明：维持不确认，但工具描述会明确告诉模型「未声明不等于只读，调用前先向用户说明」。
-
-这些 annotation 是远程服务端的自报提示，不是可信证明。MCP 工具没有 vault 读写句柄，也不进撤销栈；结果文本是不可信输入，应只接入你信任的服务。
-
----
-
-## 完全配置版（规划中）
-
-现在是 BYO key：你自己去各家申请 Key、自己填。我们**规划中**会提供一个零配置的托管版本——统一 API、开箱即用，任何设备不必折腾密钥。具体形态与时间待定，本文档不承诺日期；当前版本的一切能力它就是它的全部。
-
----
-
-## 边界与安全（先看这段再用）
-
-- **API Key 明文存储**：所有 Key 以明文存在 vault 的 `data.json` 里（v1 从众做法）。不要把 `data.json` 提交到公开仓库、不要放进会公开同步的目录。
-- **技能是提示注入面**：技能正文会原样注入 AI 的上下文，等同于提示词——**只安装你信任来源的技能**。技能永远是纯提示文本、绝不执行代码，也不能绕过审批：默认/自动模式下的编辑类仍落文件卡片，移动/删除仍走执行前确认。
-- **删除有双保险**：`delete_note` 与 `delete_folder` 永远强制弹窗确认（不受任何「跳过确认」设置影响）；删除与编辑会先尝试留全文快照，成功后对话框顶部「撤销」可还原（撤销栈落盘，重启不丢）。**文件夹删除的快照有上限**：200 个文件 / 500 KB，且子树上必须全是文本文件——文件过多、含图片/PDF/电子书、或有文件读不出来时不记录快照，结果、卡片与提示都会明确写出「本次无法在插件内撤销；若你的「删除文件」设置是永久删除，则只能从备份找回」，绝不假装可撤销。（另外：超过 100 KB 的快照仍可在本次会话内撤销，但超出落盘上限，重启后该条目会被丢弃。）
-- **MCP 工具与结果都不可信**：远程调用只按服务端自报 annotation 标记是否破坏性，未声明时不会弹确认；即使标记为破坏性，「免询」模式也会放行。输出会进入模型上下文，插件不授予它 vault 句柄，也没有撤销。别接入不受信服务，也不要把 MCP 输出当成可信指令。
-- **`fetch_url` 会把网址发出去、把页面读进来**：它是只读工具、不弹确认（与 MCP 工具的调用一致——审批留给改动本地数据的操作），但要知道：请求会到达那个站点（对方能看到你的 IP 与请求头，插件不伪装 User-Agent），页面文本会进入本次对话上下文（因此也可能被一起发给你的模型服务商）。插件**不拦内网/本地地址**（`http://127.0.0.1:…`、`192.168.*` 之类），也**不做**「哪些地址算内网」的穷举判断——这是本地优先工具的有意取舍，不是遗漏；只让 AI 打开你信得过的网址。另外它只处理文本类内容，二进制（PDF/图片/压缩包）按 content-type 拒绝。
-- **`run_obsidian_command` 能跑任何插件注册的命令，插件看不到它做了什么**：命令是黑盒——插件拿不到它改了哪些文件，所以这一步**不进撤销栈**、也无法在插件侧还原；「免询」模式下连确认都不会弹。系统提示要求库内编辑仍走笔记工具，但那是**软引导**，真正拦得住的是你选的审批模式。会终结当前会话的三类命令（`app:reload` / `app:quit` / `window:close`）被**硬拒绝**，列命令时也不会出现。
-- **`run_command` 的只读命令默认免确认**：能被证明只读的命令（ls / cat / git status / rg / find 不带 -exec 等）不再弹确认框——判定是**白名单 + 认不出就确认**：写入类、串联了陌生命令的、含重定向 / 命令替换 / 变量展开 / 后台作业的、以及白名单外的命令（npm run、make、curl、自装 CLI）一律照旧逐次确认，且任何审批模式都不豁免。设置 → 安全 →「只读命令免确认」关掉即回到「每条都问」。代价要清楚：**只读不等于读不到敏感内容**——`cat ~/.ssh/id_rsa` 也是只读命令，免询后这类读取会直接执行并把内容带进对话上下文（因此也可能被一起发给你的模型服务商）。
-- **办公文档（.docx / .xlsx / .pptx / .pdf）不再读取（2026-09-29 移除）**：`read_document` / `write_document` 曾经把这几类文件转成 Markdown/纯文本（解析全在插件内：OOXML 用 vendor 的 fflate 解包 + DOMParser，PDF 自己解文本层，不装 OCR、不引 SDK），写入只限 `.docx`。这一整块被移除了——手写的 PDF 文本层解析器与 .docx 写入器是全仓最贵、用得最少的代码（近 400 条真实消息里 `read_document` 1 次、`write_document` 0 次），而它占着 78KB 的产物与一条独立的技能。**现在拿到一份 .docx / .pdf，插件读不了**：请先转成文本，或用专门的插件。库里 `.html` 仍可由 `read_note` 当文本读；**网上**的页面仍走 `fetch_url` 转 Markdown。
-- **第三方解析组件**：电子书解析层 vendor 自 [foliate-js](https://github.com/johnfactotum/foliate-js)（MIT）与 [fflate](https://github.com/101arrowz/fflate)（MIT），纯 JS 内存解析、移动端一致；来源与版本见 `src/vendor/foliate/README.md`。
-
-### 权限与数据访问披露（对应官方审核提示的四项行为）
-
-官方审核对这个插件给过四类行为提示（Shell Execution / Vault Enumeration / Clipboard Access / Local Storage），逐条如实说明它们各自在干什么：
-
-- **Shell Execution（`child_process`，仅桌面，`run_command`）**：存在的唯一理由是让助手做**库外**的活（格式转换、`git`、`rg`、一次性脚本）。移动端这个工具被过滤掉，整个代码库只有这一处触碰本地进程；库内编辑永远走笔记工具。能被证明只读的命令默认免确认，写入的与认不出的一律逐次确认——代价见上文「只读不等于读不到敏感内容」。
-- **Vault Enumeration（`vault.getFiles` 一类调用）**：列出库内路径，用于建关键词检索索引、解析 `[[双链]]`、列文件夹内容，以及判断某个技能该不该出现在本轮（库里有没有电子书、有没有配生图模型）。文件**内容**只在某个工具真的被要求读它时、经 Obsidian 文档化的 API 读取。
-- **Clipboard（剪贴板）**：只有你点「复制」时才**写入**（复制消息、笔记路径、嵌入块、图片）；插件从不主动读剪贴板——粘贴图片走的是你自己触发的那次 paste 事件。
-- **Local Storage（`localStorage`，两个键，不是库内数据）**：一个是开机日志用的「上次没正常退出」标记，一个是「屏幕上确实弹过键盘」的闩锁。两者都必须在 webview 被硬杀时仍能落下——这正是同步的 `localStorage` 能做、异步的插件数据 API 做不到的事。里面只有一个时间戳和一个布尔值：没有笔记内容，也没有密钥。
-- **联网去向**：模型服务商（每轮对话）、可选的 embedding 服务（语义检索）、你自己加的 MCP 服务（内置搜索预设的 key 一律留空，填了才可用）、`fetch_url` 打开的那个网址，以及同库其他插件经本地 `getAI()` 桥接交来的文本（见下）。
-- **跨插件补全桥（`getAI()`）**：同一库里安装的其他插件（目前是 UNreader）可以调用 `app.plugins.plugins.unagent?.getAI?.()`，用**本插件**已配置的模型发起纯文本补全。它能拿到：补全文本和模型显示名。它拿不到：工具、agent 循环、你的对话历史、你的设置、你的 API key——请求挂在本插件现有的厂商配置上，与其他请求一样发往同一个模型服务商。禁用 UNagent 或未配置模型时桥接不可用；插件卸载时在飞请求全部中止。
-- **为什么用 `fetch` 而不是 `requestUrl`**：模型输出要流式（手写 SSE 读 `response.body`），而 `requestUrl` 会把整个响应缓冲下来，做不到流式——网络层换不了；非流式请求也故意留在同一套传输上，超时 / 中止 / 错误的语义只有一份。审核提示的「优先 `requestUrl`」是有意不采纳的。源码里全局 `fetch` 只出现一处（`src/utils/nativeFetch.ts`），所有网络模块都 import 它——新增网络调用照着走。**没有遥测、没有统计、没有账号、没有任何我方服务器**。
-
-## 平台差异声明
-
-- **移动端（手机/平板）= 纯插件内 JS + 远程 HTTP**：零本地进程、零本地算力（embedding 也走远程），所有核心功能三端一致。
-- **桌面专属能力只有一条**：`run_command` 本地命令/脚本执行（库外计算；只读命令默认免确认、其余逐次确认，绝不用于库内文件）。移动端该入口缺席而非报错；除此之外桌面与移动没有任何功能差异。
-
----
-
-## 开发（给改代码的人）
-
-```bash
-cd unagent
-npm install
-npm run dev      # esbuild watch，自动同步产物到测试 vault
-npm run build    # tsc strict 类型检查 + esbuild 生产构建 → main.js / manifest.json / styles.css
-npm test         # jest 全量
-```
-
-2026-09-21 更新：引用渲染按用户指示回退为「输入框内 + 气泡里的紧凑高亮块」，紧随其后那条 2026-09-20 记录里的「悬浮带独占」已不成立（`RefBar` 及其样式、零宽锚点、半透明关键信息三件套整体删除）；同日 `npm run build` 实测 `main.js` 1,067,925 bytes（约 1,043 KiB）、`styles.css` 80,311 bytes（约 78 KiB）——同一工作树还带着其他并行改动，所以这不是这次回退单独的差值。当天稍后，所有渲染块统一成一套 chip 系统：引用 / 命令 / 技能 / 子代理共用 `.UNagent-chip` 骨架，只有标签宽度、徽章图标与底色按类型不同，点击都弹同一个内容窗——输入框覆盖层、用户气泡与 AI 正文三处一致，空态问候里的子代理按钮也是同一枚 chip；这次构建实测 `main.js` 1,074,048 bytes（约 1,049 KiB）、`styles.css` 80,234 bytes。
-
-2026-09-22 更新：色块左右间距加到 ½em（输入框 marker 两侧各两个 U+2005，与 `padding: 0 0.5em` 对齐；正文侧 margin 0.2em）；斜杠指令由选择器插入时自带尾空格，紧跟 chip 打字会把分隔空白补进原始值；标点作为 token 边界，`//周报，正文` 在输入框与气泡里都是 chip + 正文。这次 `npm run build` 实测 `main.js` 1,074,938 bytes（约 1,050 KiB）、`styles.css` 80,231 bytes。
-
-2026-09-28 更新：正文快速输入框（见上表）与跨插件 `getAI()` 桥同日落地；启动心跳改为自适应（第一分钟 5 秒一跳，之后 30 秒），并给重复的错误日志加了一档风暴限流（同一窗口内同类消息折叠成一条 `×N`）；输入卡全局改形——端头半圆改为固定 12px 圆角矩形，侧边栏、主窗口与正文快速输入框共用同一枚 token。**Option+Z（Alt+Z）默认键由「引用选中文字」移交正文快速输入框**（引用命令改为命令面板专用，要键可在 设置 → 快捷键 自绑——那套平台 keymap 失真兜底跟着「当前绑了键的命令」走）。输入框的 @ 选择器同日多了 RSS 文章引用——从 `@` 列表的入口行进（那次构建里带的第四档 `@@@@` 第二天退回三档，见 2026-09-29 更新）。这次 `npm run build` 实测 `main.js` 1,089,066 bytes（约 1,063 KiB）、`styles.css` 83,446 bytes。
-
-2026-09-29 更新：@ 选择器可以引用 **UNmemos 的卡片**了，同时**艾特阶梯退回三档**——RSS 文章与 UNmemos 卡片不再是艾特档位（多敲的 `@@@@` 及以上仍按标签档算），两者都从 `@` 列表首部的两行入口进，一个艾特就能到任何一份列表。入口照 unreader 那一档做（正在阅读的文章仍钉在入口行之下并默认选中）。卡片按 `[[存储文件#memo id]]「正文片段」` 插入（Obsidian 画布节点链接的原生写法）：悬停直接预览那一张卡片（手机上长按浮层渲染卡片正文，不再把整份 canvas JSON 摊出来），点击现读该卡片全文并给「打开卡片」，引用里那串 16 位数字就是 `memos` 工具收的 memo id。同日把机器侧也接上了：画布节点引用不再在「引用笔记内容」里得到一句「无法读取」，而是展开成 `【引用 memo：时间 · 标签】` + 卡片全文；归档卡片只在输入查询时才列出。这次 `npm run build` 实测 `main.js` 1,096,321 bytes（约 1,070 KiB）、`styles.css` 83,953 bytes。
-
-2026-09-30 更新：**启动专项分支（perf/restore-path）合并进主树**——办公文档工具整块（`read_document` / `write_document` / `documents` 技能）与 `todo_write` 正式移除（历史清单块仍只读渲染并喂回模型）；启动心跳彻底删除，改为启动时读一次 boot-log 尾部、把上一会话最后一条记录写进 `onload:prev-tail`；per-agent 改能力声明制（`agent.md` / `subagent.md` 的 frontmatter 声明 tools/skills/mcp 允许与排除名单，排除优先；设置页那张 per-agent 矩阵撤下，旧 `perAgent` 排除降为 legacy 层仍生效）；恢复路径四项（钉住模式不再多读索引、启动期读盘只在确证仍在启动时让位到布局就绪后、`vaultIO` 去掉读盘前的 `exists()` 预检、FileCard 进视口附近才惰性预览）；会话落盘裁剪（写盘时裁 tool block 的 `output`/`args`——内存完整、老文件兼容）。同日把测试桩里的假凭据改成非字面量表达式（安全门禁开始拦字面量形状的桩值）。这次 `npm run build` 实测 `main.js` 1,018,083 bytes（约 994 KiB——0.11.6 全部功能与启动专项移除进同一个包，仍守住 1MiB 以内）、`styles.css` 83,953 bytes。
-
-2026-09-28 补充（正文快速输入框的底部让位）：覆盖层不再贴死视图底边，留 12px 缝隙；手机上这条缝再叠在 Obsidian 底栏之上。手机档的底栏让位仍取 `.mobile-navbar` 的实测高度（与聊天面板同一条规则），但**加了地板值 = Obsidian 自己声明的底栏条带**（经典档是 `--navbar-height`；1.12 默认开的浮动胶囊底栏是高度 + 底部外边距）——实测还没到位的那一帧、或 navbar 节点被 Obsidian 换掉（脱离文档的元素量出零矩形，只会被读成「没有导航栏」）时，输入卡不会再掉到浮动底栏上或它的背后；键盘弹起、底栏被滚动收起这两种「底栏不在屏上」的态不叠地板（那里没有东西要避）。navbar 节点掉出文档后也会重查，换一次 app shell 不会把让位弄丢。这次 `npm run build` 实测 `main.js` 1,089,163 bytes（约 1,064 KiB）、`styles.css` 83,882 bytes。
-
-产物体积受关注（`main.js` 2026-09-30 合并启动专项后 `npm run build` 实测 1,018,083 bytes（约 994 KiB——0.11.6 全部功能与启动专项移除进同一个包，仍守住 1MiB 以内）；2026-09-29 `npm run build` 实测 1,096,321 bytes（约 1,070 KiB——UNmemos 卡片入口行 + `--memo` 渲染块 + 画布节点引用的悬停预览 / 点击弹窗 / 送模型的展开进包，同时把艾特阶梯退回三档之后）；同日启动专项分支在 v0.11.5 基底上实测 995,348 bytes（约 972 KiB——移除办公文档工具整块（−78KB）后又移除 `todo_write`（−2.9KB），加上恢复路径四项与会话落盘裁剪，**首次跌破 1MB**）；2026-09-28 实测 1,089,245 bytes（约 1,064 KiB——@ 拾取器的 RSS 入口行 / 定序 / 默认高亮，叠在快速输入框底部让位（12px 呼吸缝 + 手机档底栏地板 + navbar 节点重查）之上）；同日更早两次：1,089,163 bytes（约 1,064 KiB——只含底部让位）、 1,089,066 bytes（约 1,063 KiB——正文快速输入框、跨插件 `getAI()` 桥、日志限流、Option+Z 移交与 RSS 引用进包后）；2026-09-20 `npm run build` 实测 1,060,825 bytes（约 1,036 KiB——引用改由输入框上方的悬浮带独占，并归口工具通知路径之后）；同一次会话再早一点是 1,061,070 bytes（约 1,036 KiB，`memos` 工具与技能进包后，同一次构建也带着 `unreader` 技能、`create_note` 的 `.json` 白名单，以及同日并行落地的 RefBar / mention 改动——所以这个数含的不只是 `memos`）；同日更早一次 1,036,479 bytes（约 1,012 KiB，`unreader` 技能与 `.json` 白名单进包后）；2026-09-19 实测：文档能力（`read_document` + `write_document`）与 `documents` 技能进包并修完真实文件样本暴露的读取缺陷后 1,012,155 bytes（约 988 KiB；修缺陷前那一刻是 1,009,379 bytes）；同一天只读命令免确认落地后 934,186 bytes（约 912 KiB）、`run_obsidian_command` 落地时 925,340 bytes，此前 894,761 bytes）；每次构建后 grep 产物确认无隐藏依赖泄漏（pglite / lexical / framer-motion / langchain 须全 0）。
-
-## License
-
-**UNcore Source Available License**（源码可见，非开源许可）—— 阅读与审计源码被允许（含 Obsidian 官方审核），商业使用、再分发与再发布需事先书面授权。详见 [LICENSE](LICENSE)。
-
-按社区目录对「Close sourced code」的披露要求写明：本插件**属于闭源插件**——分发的 `main.js` 是压缩后的构建产物，源码在私有仓库中，仅对 Obsidian 官方审核开放；需要商业授权请联系 UNcore。
-
-> **English:** UNcore Source Available License — source-visible, not open source. Reading and auditing the source is permitted (including for Obsidian's plugin review); commercial use, redistribution and republishing require written permission. The plugin is therefore closed source in the Community directory sense: the shipped `main.js` is a minified build, and the source lives in a private repository opened to Obsidian's review process.
+**UNcore Source Available License**——源码可见，但不是开源许可证。允许为 Obsidian 官方审核、个人学习或研究阅读和审计源码；商业使用、修改、再分发和再发布需事先取得书面许可。社区目录显示本插件的私有源码已通过审核；公开仓包含压缩后的 `main.js`，源码保存在私有审核仓库。详见 [LICENSE](LICENSE)。
