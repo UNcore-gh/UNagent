@@ -20,6 +20,8 @@ Connect your own model provider and API key; UNagent sends requests directly to 
 - **Choose your interface language.** UNagent follows Obsidian's language by default. To set it manually, open **Settings → UNagent → General → Language & appearance → Language mode** and choose **English mode** or **Chinese mode**.
 - **Reference related material.** In the composer, `@` selects notes, `@@` folders, and `@@@` tags. If UNreader or UNmemos is installed, entry rows also let you select RSS articles or memo cards.
 - **Read more than notes.** `book_read` reads EPUB, FB2, MOBI, AZW3, and TXT files. `fetch_url` converts a web page to Markdown. Neither is a general PDF or office-document reader.
+- **Collaborate across conversations.** Enable collaboration for selected chats, reference them from the `@` conversation entry, or ask them to perform a task. Each chat retains its own model and workspace; inserting a reference alone does not start a task.
+- **Learn with `teach`.** This optional preset builds a learning workspace with short lessons, practice and learning records. It is enabled by default; your existing skill with the same name takes priority.
 - **Add optional guidance and tools.** Skills are plain-text guides. Remote MCP servers can add tools, but they are optional and should only be connected when trusted.
 
 ## Quick start
@@ -51,9 +53,14 @@ For example: “Search my notes about reading and summarize the main ideas.” Y
 
 In the default and automatic approval modes, create/edit actions appear in a review card after they run. Read the [approval and security boundaries](#data-and-safety) before using tools that change files or call remote services.
 
+## Optional external agents
+
+For Codex or Claude Code on the same computer, open **Settings → UNagent → General → External AI communication**. Install the separate [UNagent Connect 0.2.1 package](https://github.com/UNcore-gh/unagent-connect/releases/tag/0.2.1) and follow its installation and pairing guide. The Hub requires Node.js 22.13 or newer. Automatic execution is off by default and requires explicit setup; pairing does not launch an agent. The original manual bridge remains supported. Phone/tablet access to a computer’s local Hub is not supported.
+
 ## Data and safety
 
 - **Your model provider receives the conversation context it needs.** This can include note excerpts and tool results. UNagent does not provide a proxy, account, telemetry, or analytics service.
+- **Collaboration shares the task and necessary context with its recipient.** This can include selected notes and results sent to that recipient’s configured model provider. Only chats you enable for collaboration are discoverable. External connections use authenticated local HTTP; do not pair untrusted agents. Approvals remain with the user in the receiving application, and interrupted work is not replayed automatically.
 - **API keys are stored as plain text** in the vault's `data.json`. Keep that file private; do not commit it or place it in a publicly synced folder.
 - **Network use is optional by feature.** Model requests go to your configured provider. Semantic search uses a remote embedding API if enabled. MCP calls go to servers you add. `fetch_url` sends the requested URL to that website, and the page text can then enter the model context.
 - **`fetch_url` does not block private or local network addresses.** Use it only with URLs you trust. It refuses binary files and non-HTTP(S) schemes.
@@ -66,7 +73,7 @@ In the default and automatic approval modes, create/edit actions appear in a rev
 
 - The release manifest declares **Obsidian 1.7.2** as the minimum app version and is not desktop-only.
 - Chat and vault tools are available on mobile and desktop. `run_command` is the one desktop-only tool.
-- The 1.0.2 release checks did not cover physical phone/tablet devices or a live model service.
+- Version 1.1.0 was checked against live model services and in phone/tablet emulation. Physical-device keyboards, system gestures and background behavior remain unverified.
 - Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
 - `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
 - UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
@@ -82,7 +89,7 @@ Obsidian delivers plugin updates through its official Community plugin channel. 
 
 ## License
 
-**UNcore Source Available License** — source-visible, not an open-source license. Reading and auditing the source is permitted for Obsidian's plugin review and personal learning or research. Commercial use, modification, redistribution, and republishing require prior written permission. The Community directory marks the listing as privately source-reviewed; the public repository contains a minified `main.js`, while the source is kept in a private repository for review. See [LICENSE](LICENSE).
+**UNcore Source Available License** — source-visible, not an open-source license. Reading and auditing the source is permitted for Obsidian's plugin review and personal learning or research. Commercial use, modification, redistribution, and republishing require prior written permission. The Community directory marks the listing as privately source-reviewed; the public repository contains a minified `main.js`, while the source is kept in a private repository for review. See [LICENSE](LICENSE). The bundled `teach` preset is adapted from [Matt Pocock’s skills](https://github.com/mattpocock/skills/tree/ad5400b930b297b0c0cb231ff1ffe42a7da666aa/skills/productivity/teach) under the MIT license; its attribution and license are included in the preset and LICENSE.
 
 ---
 
@@ -108,6 +115,8 @@ Obsidian delivers plugin updates through its official Community plugin channel. 
 - **选择界面语言。** 默认跟随 Obsidian 的语言；也可以在**设置 → UNagent → 通用 / General → 语言与外观 / Language & appearance → 语言模式 / Language mode**中选择**英文模式 / English mode**或中文模式。
 - **引用相关内容。** 输入框里用 `@` 找笔记、`@@` 找文件夹、`@@@` 找标签。安装 UNreader 或 UNmemos 后，还能从入口行选择 RSS 文章或卡片。
 - **读取网页和电子书。** `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT；`fetch_url` 把网页转成 Markdown。它们都不是通用 PDF 或办公文档阅读器。
+- **让多个对话协作。** 为选定对话开启协作后，可从 `@` 的「对话」入口引用它，也可明确要求它接收任务。各对话保留自己的模型与工作范围；插入引用本身不会派任务。
+- **用 `teach` 持续学习。** 通过短课、练习和学习记录建立学习工作区。该预设默认开启、可以关闭；你已有的同名技能优先。
 - **按需扩展。** Skill 是纯文本操作指南；远程 MCP 服务可以增加工具，但都是可选项，只连接你信任的服务。
 
 ## 快速上手
@@ -139,9 +148,14 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 默认和自动审批模式下，新建/编辑动作执行后会进入复核卡片。使用会改文件或访问网络的工具前，请先阅读[审批与安全边界](#数据与安全边界)。
 
+## 可选的外部 AI 通讯
+
+需要连接同一台电脑上的 Codex 或 Claude Code 时，打开**设置 → UNagent → 通用 → 外部 AI 通讯**，安装独立的 [UNagent Connect 0.2.1 通讯包](https://github.com/UNcore-gh/unagent-connect/releases/tag/0.2.1)，按包内说明安装与配对。Hub 需要 Node.js 22.13 或更新版本；自动执行默认关闭，需明确配置，配对本身不会启动外部 Agent。原有手动桥接仍保留。不支持手机／平板连接电脑上的本机 Hub。
+
 ## 数据与安全边界
 
 - **模型服务商会收到对话所需的上下文。** 其中可能包括笔记摘录和工具结果。UNagent 不提供代理、账号、遥测或统计服务。
+- **协作会把任务及必要资料交给接收方。** 其中可能包含选定的笔记和结果，并进入接收方所配置模型的上下文。只有你开启协作的对话才可被发现；外部接入使用经过认证的本机 HTTP，不要配对不可信 Agent。操作确认仍由接收软件中的用户处理，中断任务不会自动重做。
 - **API Key 以明文保存在 vault 的 `data.json` 中。** 请妥善保管，不要提交到 Git，也不要放在公开同步目录。
 - **联网按功能发生。** 模型请求发往你配置的服务商；启用语义检索时会调用远程向量服务；MCP 请求发往你添加的服务器；`fetch_url` 会把网址发给对应网站，网页正文之后也可能进入模型上下文。
 - **`fetch_url` 不拦截内网或本机地址。** 只打开你信任的网址。它会拒绝二进制文件和非 HTTP(S) 地址。
@@ -154,7 +168,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 - 发布包的 manifest 声明最低支持 **Obsidian 1.7.2**，插件并非桌面专用。
 - 移动端和桌面端都可使用对话与 vault 工具；`run_command` 是唯一的桌面专属工具。
-- 1.0.2 版本验收未覆盖手机/平板真机和真实模型服务。
+- 1.1.0 已使用真实模型服务及手机／平板模拟环境检查；真机键盘、系统手势与后台行为仍未覆盖。
 - 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
 - `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
 - RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
@@ -170,4 +184,4 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 ## 许可证
 
-**UNcore Source Available License**——源码可见，但不是开源许可证。允许为 Obsidian 官方审核、个人学习或研究阅读和审计源码；商业使用、修改、再分发和再发布需事先取得书面许可。社区目录显示本插件的私有源码已通过审核；公开仓包含压缩后的 `main.js`，源码保存在私有审核仓库。详见 [LICENSE](LICENSE)。
+**UNcore Source Available License**——源码可见，但不是开源许可证。允许为 Obsidian 官方审核、个人学习或研究阅读和审计源码；商业使用、修改、再分发和再发布需事先取得书面许可。社区目录显示本插件的私有源码已通过审核；公开仓包含压缩后的 `main.js`，源码保存在私有审核仓库。详见 [LICENSE](LICENSE)。内置 `teach` 预设改编自 [Matt Pocock 的 skills](https://github.com/mattpocock/skills/tree/ad5400b930b297b0c0cb231ff1ffe42a7da666aa/skills/productivity/teach)，该部分遵循 MIT 许可，署名及许可全文保留在预设和 LICENSE 中。
