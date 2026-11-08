@@ -63,6 +63,7 @@ For Codex or Claude Code on the same computer, open **Settings → UNagent → G
 - **Collaboration shares the task and necessary context with its recipient.** This can include selected notes and results sent to that recipient’s configured model provider. Ordinary existing and new chats are discoverable and readable by connected participants without a per-chat switch. Referencing or reading a chat does not start a task; delegation requires an explicit execution request. External connections use authenticated local HTTP; do not pair untrusted agents. Approvals remain with the user in the receiving application, and interrupted work is not replayed automatically.
 - **API keys are stored as plain text** in the vault's `data.json`. Keep that file private; do not commit it or place it in a publicly synced folder.
 - **Network use is optional by feature.** Model requests go to your configured provider. Semantic search uses a remote embedding API if enabled. MCP calls go to servers you add. `fetch_url` sends the requested URL to that website, and the page text can then enter the model context.
+- **Conversation memory is local by default.** While Obsidian is running, saved chats are organized in the background even if the chat panel is closed. Original serializable messages, including full tool output held in memory before normal chat-history trimming, are stored separately under `<aiFolder>/memory-v1`; credentials and inline base64 attachments are omitted. Local summaries and search do not use the network. If “Use the model to refine summaries” is enabled, up to 10,000 characters from that saved chat are sent to your configured model provider in one request (output capped at 240 tokens); provider charges may apply. The model receives no tools. Turning off automatic organization pauses queued work; deleting a conversation removes its archive, summaries, index entry, and queue item. Previously trimmed legacy chats are best-effort and cannot regain text that was already lost.
 - **`fetch_url` does not block private or local network addresses.** Use it only with URLs you trust. It refuses binary files and non-HTTP(S) schemes.
 - **Skills are instructions, not programs.** Their text is added to the model context, so use skills only from sources you trust.
 - **MCP servers are remote and outside the vault's undo system.** Their annotations are supplied by the server and are not proof that a tool is safe. Connect only servers you trust.
@@ -73,7 +74,7 @@ For Codex or Claude Code on the same computer, open **Settings → UNagent → G
 
 - The release manifest declares **Obsidian 1.7.2** as the minimum app version and is not desktop-only.
 - Chat and vault tools are available on mobile and desktop. `run_command` is the one desktop-only tool.
-- Version 1.1.0 was checked against live model services and in phone/tablet emulation. Physical-device keyboards, system gestures and background behavior remain unverified.
+- Version 1.1.4 passed the automated test suite and production build checks. Live-model evaluation and physical-device keyboards, system gestures and background behavior remain unverified.
 - Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
 - `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
 - UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
@@ -158,6 +159,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 - **协作会把任务及必要资料交给接收方。** 其中可能包含选定的笔记和结果，并进入接收方所配置模型的上下文。所有普通新旧对话均可被已连接的参与方发现和读取，无需逐个开启；引用或读取本身不派任务，明确要求执行时才派发。外部接入使用经过认证的本机 HTTP，不要配对不可信 Agent。操作确认仍由接收软件中的用户处理，中断任务不会自动重做。
 - **API Key 以明文保存在 vault 的 `data.json` 中。** 请妥善保管，不要提交到 Git，也不要放在公开同步目录。
 - **联网按功能发生。** 模型请求发往你配置的服务商；启用语义检索时会调用远程向量服务；MCP 请求发往你添加的服务器；`fetch_url` 会把网址发给对应网站，网页正文之后也可能进入模型上下文。
+- **历史对话默认在本地整理。** Obsidian 运行时会在后台整理已保存对话，关闭聊天面板不影响。完整的可序列化消息（包括普通会话文件裁剪前、已在插件内存中的工具输出）单独保存在 `<aiFolder>/memory-v1`；凭据字段和内嵌 base64 附件不归档。本地摘要和检索不联网。开启“使用模型改写摘要”后，每个待整理对话最多发送 10,000 字符到你配置的模型服务商，输出最多 240 tokens，服务商可能收费；该请求不带工具。关闭自动整理会暂停队列；删除对话会同时删除原文归档、摘要、索引项和队列任务。旧对话只能整理当前还留存的内容，无法恢复以前已裁掉的文字。
 - **`fetch_url` 不拦截内网或本机地址。** 只打开你信任的网址。它会拒绝二进制文件和非 HTTP(S) 地址。
 - **Skill 是提示文本，不是程序。** 它的内容会交给模型，因此只使用可信来源的 Skill。
 - **MCP 服务在远端运行，不受 vault 撤销功能保护。** 工具安全标记由服务端提供，不能证明工具一定安全。只连接你信任的服务。
@@ -168,7 +170,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 - 发布包的 manifest 声明最低支持 **Obsidian 1.7.2**，插件并非桌面专用。
 - 移动端和桌面端都可使用对话与 vault 工具；`run_command` 是唯一的桌面专属工具。
-- 1.1.0 已使用真实模型服务及手机／平板模拟环境检查；真机键盘、系统手势与后台行为仍未覆盖。
+- 1.1.4 已通过完整自动化测试和生产构建检查；本轮未进行真实模型评测，真机键盘、系统手势与后台行为仍未覆盖。
 - 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
 - `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
 - RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
