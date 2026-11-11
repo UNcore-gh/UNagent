@@ -74,7 +74,7 @@ For Codex or Claude Code on the same computer, open **Settings → UNagent → G
 
 - The release manifest declares **Obsidian 1.7.2** as the minimum app version and is not desktop-only.
 - Chat and vault tools are available on mobile and desktop. `run_command` is the one desktop-only tool.
-- Version 1.1.6 passed the automated test suite and production build checks. Live-model evaluation and physical-device keyboards, system gestures and background behavior remain unverified.
+- Version 1.1.7 passed the automated test suite and production build checks. Live-model evaluation and physical-device keyboards, system gestures and background behavior remain unverified.
 - Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
 - `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
 - UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
@@ -170,7 +170,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 - 发布包的 manifest 声明最低支持 **Obsidian 1.7.2**，插件并非桌面专用。
 - 移动端和桌面端都可使用对话与 vault 工具；`run_command` 是唯一的桌面专属工具。
-- 1.1.6 已通过完整自动化测试和生产构建检查；本轮未进行真实模型评测，真机键盘、系统手势与后台行为仍未覆盖。
+- 1.1.7 已通过完整自动化测试和生产构建检查；本轮未进行真实模型评测，真机键盘、系统手势与后台行为仍未覆盖。
 - 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
 - `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
 - RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
