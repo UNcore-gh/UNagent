@@ -78,7 +78,7 @@ The optional WeChat connection is configured under **Settings → UNagent → Co
 
 - The release manifest declares **Obsidian 1.11.4** as the minimum app version and is not desktop-only.
 - Chat and vault tools are available on mobile and desktop. `run_command` is desktop-only; the WeChat connection runs on a desktop computer, with WeChat available on your phone.
-- Version 1.2.0 passed the automated test suite, production build and desktop Obsidian reload. Touch viewport checks passed at iPhone, iPad and Pixel sizes. Live-model evaluation and physical-device keyboards, system gestures and background behavior remain unverified.
+- Version 1.2.1 passed the full automated test suite, type checking, review-equivalent lint and production build. Live-model evaluation and physical-device acceptance on phones and tablets remain unverified.
 - Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
 - `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
 - UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
@@ -178,7 +178,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 - 发布包的 manifest 声明最低支持 **Obsidian 1.11.4**，插件并非桌面专用。
 - 移动端和桌面端都可使用对话与 vault 工具；`run_command` 仅限桌面。微信连接由电脑负责运行，可在手机微信里聊天。
-- 1.2.0 已通过完整自动化测试、生产构建和桌面 Obsidian 重载验证，并完成 iPhone、iPad、Pixel 尺寸的触摸视口检查；真实模型评测与真机键盘、系统手势、后台行为仍需实体设备覆盖。
+- 1.2.1 已通过完整自动化测试、类型检查、审核同口径 lint 与生产构建；真实模型评测与手机／平板真机验收仍需实体设备覆盖。
 - 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
 - `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
 - RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
