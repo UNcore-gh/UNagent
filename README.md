@@ -58,7 +58,7 @@ In the default and automatic approval modes, create/edit actions appear in a rev
 
 For Codex or Claude Code on the same computer, open **Settings → UNagent → Connections → External AI communication**. Install the separate [UNagent Connect 0.2.1 package](https://github.com/UNcore-gh/unagent-connect/releases/tag/0.2.1) and follow its installation and pairing guide. The Hub requires Node.js 22.13 or newer. Automatic execution is off by default and requires explicit setup; pairing does not launch an agent. The original manual bridge remains supported. Phone/tablet access to a computer’s local Hub is not supported.
 
-The optional WeChat connection is configured under **Settings → UNagent → Connections → WeChat connection** on a computer. Scan with WeChat and chat through ClawBot. The first connection creates an editable sub-agent for WeChat research and knowledge-base questions. Select its model, thinking strength and search mode in WeChat settings; these choices apply to new WeChat tasks on this device. The computer and Obsidian must remain running. Text and downloadable attachments such as images and files are supported; unsupported message types are reported instead of being processed. Tool approvals remain in Obsidian. Binding may replace a previous WeChat bot connection.
+The optional WeChat connection is configured under **Settings → UNagent → Connections → WeChat connection** on a computer. Scan with WeChat and chat through ClawBot. The first connection creates an editable sub-agent for WeChat research and knowledge-base questions. Select its model, thinking strength and search mode in WeChat settings; these choices apply to new WeChat tasks on this device. The computer and Obsidian must remain running. Send images or files to save them to the vault and get a receipt. Send `/发文件 file-name` to receive a copy of an existing vault file as a WeChat attachment. For duplicate names, the bot asks for the full vault-relative path. Files are limited to 25 MB each. With UNmemos hosting the bot in combined mode, update both plugins and route incoming files to UNagent when you want AI to handle them. Send `/全文` to expand a long answer in WeChat. Reading the contents of an attachment depends on its format and the configured model. Tool approvals remain in Obsidian. Binding may replace a previous WeChat bot connection.
 
 ## Data and safety
 
@@ -78,7 +78,7 @@ The optional WeChat connection is configured under **Settings → UNagent → Co
 
 - The release manifest declares **Obsidian 1.11.4** as the minimum app version and is not desktop-only.
 - Chat and vault tools are available on mobile and desktop. `run_command` is desktop-only; the WeChat connection runs on a desktop computer, with WeChat available on your phone.
-- Version 1.2.1 passed the full automated test suite, type checking, review-equivalent lint and production build. Live-model evaluation and physical-device acceptance on phones and tablets remain unverified.
+- Version 1.4.0 passed the full automated test suite, type checking, review-equivalent lint and production build. Live-model evaluation and physical-device acceptance on phones and tablets remain unverified.
 - Vault search covers Markdown notes. It does not search inside images, PDFs, or ebooks.
 - `book_read` supports EPUB, FB2, MOBI, AZW3, and TXT. DRM-protected books are not supported. PDF and Office documents are not read by UNagent.
 - UNreader article references and UNmemos card references appear only when the corresponding plugin provides its data.
@@ -158,7 +158,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 需要连接同一台电脑上的 Codex 或 Claude Code 时，打开**设置 → UNagent → 连接 → 外部 AI 通讯**，安装独立的 [UNagent Connect 0.2.1 通讯包](https://github.com/UNcore-gh/unagent-connect/releases/tag/0.2.1)，按包内说明安装与配对。Hub 需要 Node.js 22.13 或更新版本；自动执行默认关闭，需明确配置，配对本身不会启动外部 Agent。原有手动桥接仍保留。不支持手机／平板连接电脑上的本机 Hub。
 
-可在电脑上打开 **设置 → UNagent → 连接 → 微信连接**，扫码后通过微信 ClawBot 对话。首次连接会创建可编辑的微信子代理，适合资料检索与知识库问答；可在微信设置中选择模型、思考强度和检索模式，对本设备之后的新微信任务生效。电脑上的 Obsidian 需要保持运行。支持文字以及可下载的图片、文件等附件；不支持的消息类型会明确提示，不会继续处理。需要授权的操作仍在 Obsidian 内确认；新绑定可能替换已有的微信机器人连接。
+可在电脑上打开 **设置 → UNagent → 连接 → 微信连接**，扫码后通过微信 ClawBot 对话。首次连接会创建可编辑的微信子代理，适合资料检索与知识库问答；可在微信设置中选择模型、思考强度和检索模式，对本设备之后的新微信任务生效。电脑上的 Obsidian 需要保持运行。可以发送图片或文件到库里，微信会回复保存结果。发送 `/发文件 文件名` 可取回库内原文件，遇到同名时按提示填写库内完整路径。单个文件上限 25 MB。如果是 UNmemos 在聚合模式下代收微信，需要同时更新两个插件。希望 AI 处理发来的附件时，请把它分流给 UNagent。长回答可在微信发送 `/全文` 展开。AI 能否读取附件内容取决于文件格式和使用的模型。需要授权的操作仍在 Obsidian 内确认；新绑定可能替换已有的微信机器人连接。
 
 ## 数据与安全边界
 
@@ -178,7 +178,7 @@ UNagent 使用你自己的模型账户；如服务商收费，费用由服务商
 
 - 发布包的 manifest 声明最低支持 **Obsidian 1.11.4**，插件并非桌面专用。
 - 移动端和桌面端都可使用对话与 vault 工具；`run_command` 仅限桌面。微信连接由电脑负责运行，可在手机微信里聊天。
-- 1.2.1 已通过完整自动化测试、类型检查、审核同口径 lint 与生产构建；真实模型评测与手机／平板真机验收仍需实体设备覆盖。
+- 1.4.0 已通过完整自动化测试、类型检查、审核同口径 lint 与生产构建；真实模型评测与手机／平板真机验收仍需实体设备覆盖。
 - 库内搜索只覆盖 Markdown 笔记，不会搜索图片、PDF 或电子书内部内容。
 - `book_read` 支持 EPUB、FB2、MOBI、AZW3、TXT，不支持 DRM 保护的书籍。UNagent 不读取 PDF 和办公文档。
 - RSS 文章与 UNmemos 卡片引用，需要相应插件提供数据后才会出现。
